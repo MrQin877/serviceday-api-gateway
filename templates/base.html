@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Day Dashboard</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) translateX(0px); }
+            50% { transform: translateY(-20px) translateX(10px); }
+        }
+        .float-animation {
+            animation: float 6s infinite ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-[#FFF4A3] to-[#B8E6B8] relative overflow-x-hidden">
+
+    <div class="absolute top-10 left-10 w-32 h-32 bg-[#B8E6B8] rounded-full opacity-30 float-animation"></div>
+
+    <nav class="bg-white shadow-md rounded-b-3xl px-8 py-4 flex justify-between items-center relative z-10">
+
+        <a href="#" class="text-2xl font-bold text-black hover:opacity-80 transition">
+            🌱 Corporate Service Day
+        </a>
+
+        <div class="flex items-center space-x-6 font-medium">
+
+            {% if user.is_authenticated %}
+
+                {% if user.groups.all|length > 0 %}
+                    {% with group=user.groups.first %}
+
+                        {% if group.name == "Administrator" %}
+                        <!-- ========== ADMIN NAV ========== -->
+
+                            <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
+                                Home
+                            </a>
+
+                            <a href="{% url 'ngo:admin_dashboard' %}" class="text-gray-700 hover:text-black transition">
+                                Admin Dashboard
+                            </a>
+
+                            <a href="{% url 'notification:broadcast' %}" class="text-gray-700 hover:text-black transition">
+                                Broadcast
+                            </a>
+
+                            <a href="{% url 'notification:log' %}" class="text-gray-700 hover:text-black transition">
+                                Notification Log
+                            </a>
+
+                            <div class="flex items-center space-x-3">
+                                <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
+                                    👤 {{ user.username }}
+                                    <span class="text-xs text-gray-500 ml-1">(Admin)</span>
+                                </span>
+                                <form method="POST" action="{% url 'logout' %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
+                                        Logout
+                                    </button>
+                                </form>
+                            </div>
+
+                        {% elif group.name == "Employee" %}
+                        <!-- ========== EMPLOYEE NAV ========== -->
+
+                            <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
+                                Home
+                            </a>
+
+                            <a href="{% url 'ngo:ngo-list' %}" class="text-gray-700 hover:text-black transition">
+                                Opportunities
+                            </a>
+
+                            <div class="flex items-center space-x-3">
+                                <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
+                                    👤 {{ user.username }}
+                                    <span class="text-xs text-gray-500 ml-1">(Employee)</span>
+                                </span>
+                                <form method="POST" action="{% url 'logout' %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
+                                        Logout
+                                    </button>
+                                </form>
+                            </div>
+
+                        {% endif %}
+
+                    {% endwith %}
+
+                {% else %}
+                <!-- fallback: logged in but no group assigned yet -->
+                <!-- this should not happen after apps.py ready() runs -->
+
+                    <span class="text-gray-400 text-sm">No role assigned</span>
+                    <form method="POST" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
+                            Logout
+                        </button>
+                    </form>
+
+                {% endif %}
+
+            {% else %}
+            <!-- ========== GUEST NAV ========== -->
+
+                <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
+                    Home
+                </a>
+
+                <a href="{% url 'login' %}"
+                   class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black font-semibold px-5 py-2 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+                    Login
+                </a>
+
+            {% endif %}
+
+        </div>
+    </nav>
+
+    <main class="p-8 relative z-10">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="text-center py-6 text-gray-600">
+        © 2026 Service Day System
+    </footer>
+
+</body>
+</html>

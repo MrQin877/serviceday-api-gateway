@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.7rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 9999px; border: 1px solid;
+  }
+  .badge-open     { background:#dcfce7; border-color:#86efac; color:#15803d; }
+  .badge-almost   { background:#fef9c3; border-color:#fde047; color:#ca8a04; }
+  .badge-full     { background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
+  .badge-closed   { background:#f3f4f6; border-color:#d1d5db; color:#6b7280; }
+  .badge-reg      { background:#dbeafe; border-color:#93c5fd; color:#2563eb; }
+  .badge-type     { border: 1px solid; }
+
+  .pct-bar { height:100%; border-radius:9999px; background: linear-gradient(to right, #4ade80, #FFF4A3); }
+  .pct-bar-red    { height:100%; border-radius:9999px; background:#f87171; }
+  .pct-bar-yellow { height:100%; border-radius:9999px; background: linear-gradient(to right, #fde047, #fb923c); }
+  .pct-bar-gray   { height:100%; border-radius:9999px; background:#d1d5db; }
+  .pct-bar-blue   { height:100%; border-radius:9999px; background: linear-gradient(to right, #93c5fd, #818cf8); }
+
+  .slot-ring {
+    width: 100px; height: 100px; border-radius: 50%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    border: 4px solid; margin: 0 auto 0.75rem;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: #93c5fd; }
+    50%       { border-color: #3b82f6; }
+  }
+  .reg-banner { animation: pulse-border 2.5s ease-in-out infinite; }
+
+  .fade-in { animation: fadeIn 0.4s ease both; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* organizer card */
+  .org-card {
+    background: linear-gradient(135deg, #f0fdf4 0%, #f0f9ff 100%);
+    border: 1px solid #d1fae5;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+  }
+</style>
+
+<!-- Hidden color map: service type id → color index matching alphabetical order -->
+<div id="st-color-map" style="display:none">
+  {% for st in service_types %}
+    <span data-st-id="{{ st.id }}" data-color-index="{{ forloop.counter0 }}"></span>
+  {% endfor %}
+</div>
+
+<div class="max-w-5xl mx-auto px-5 py-10 fade-in">
+
+  <!-- Back button -->
+  <a href="{% url 'ngo:ngo-list' %}"
+     class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-800
+            font-medium mb-7 transition group">
+    <span class="group-hover:-translate-x-1 transition-transform duration-200">←</span>
+    Back to Opportunities
+  </a>
+
+  <div class="flex flex-col lg:flex-row gap-5 items-start">
+
+    <!-- ── LEFT: Main content ── -->
+    <div class="flex-1 space-y-4">
+
+      <!-- Hero card -->
+      <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+
+        <!-- Accent bar -->
+        {% if registration and registration.ngo.id == ngo.id %}
+          <div class="h-1.5 bg-gradient-to-r from-[#93c5fd] to-[#818cf8]"></div>
+        {% elif ngo.is_full %}
+          <div class="h-1.5 bg-red-300"></div>
+        {% elif ngo.is_closed %}
+          <div class="h-1.5 bg-gray-300"></div>
+        {% elif ngo.available_slots <= 5 %}
+          <div class="h-1.5 bg-gradient-to-r from-[#fde047] to-[#fb923c]"></div>
+        {% else %}
+          <div class="h-1.5 bg-gradient-to-r from-[#4ade80] to-[#FFF4A3]"></div>
+        {% endif %}
+
+        <div class="p-7">
+
+          <!-- Badges + title -->
+          <div class="mb-6">
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+
+              {% if registration and registration.ngo.id == ngo.id %}
+                <span class="badge badge-reg">✅ You are registered</span>
+              {% elif ngo.is_full %}
+                <span class="badge badge-full">🔴 Full</span>
+              {% elif ngo.is_closed %}
+                <span class="badge badge-closed">🔒 Closed</span>
+              {% elif ngo.available_slots <= 5 %}
+                <span class="badge badge-almost">⚡ Almost Full</span>
+              {% else %}
+                <span class="badge badge-open">🟢 Open</span>
+              {% endif %}
+
+              <span class="badge badge-type" data-st-id="{{ ngo.serviceType.id }}">{{ ngo.serviceType.name }}</span>
+            </div>
+
+            <h1 class="playfair text-3xl font-bold text-black">{{ ngo.name }}</h1>
+          </div>
+
+          <!-- Info rows -->
+          <div class="divide-y divide-gray-100 rounded-2xl border border-gray-100 overflow-hidden mb-4">
+
+            <div class="flex items-center gap-3 px-5 py-3">
+              <span class="text-sm w-5 text-center flex-shrink-0">📅</span>
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wide w-24 flex-shrink-0">Date</span>
+              <span class="text-sm font-bold text-gray-800">{{ ngo.service_date }}</span>
+            </div>
+
+            <div class="flex items-center gap-3 px-5 py-3">
+              <span class="text-sm w-5 text-center flex-shrink-0">🕐</span>
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wide w-24 flex-shrink-0">Time</span>
+              <span class="text-sm font-bold text-gray-800">{{ ngo.start_time }} – {{ ngo.end_time }}</span>
+            </div>
+
+            <div class="flex items-start gap-3 px-5 py-3">
+              <span class="text-sm w-5 text-center flex-shrink-0 mt-0.5">📍</span>
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wide w-24 flex-shrink-0 mt-0.5">Location</span>
+              <span class="text-sm font-bold text-gray-800 flex-1 break-all">{{ ngo.location }}</span>
+            </div>
+
+            <div class="flex items-center gap-3 px-5 py-3
+                        {% if ngo.is_closed %}bg-red-50{% endif %}">
+              <span class="text-sm w-5 text-center flex-shrink-0">⏰</span>
+              <span class="text-xs font-bold uppercase tracking-wide w-24 flex-shrink-0
+                           {% if ngo.is_closed %}text-red-400{% else %}text-gray-400{% endif %}">Cut-Off</span>
+              <span class="text-sm font-bold {% if ngo.is_closed %}text-red-500{% else %}text-gray-800{% endif %}">
+                {{ ngo.cutoff_datetime|date:"d M Y, H:i" }}
+                {% if ngo.is_closed %}<span class="text-xs font-semibold text-red-400 ml-1">— Passed</span>{% endif %}
+              </span>
+            </div>
+
+            <!-- ── Organizer row ── -->
+            {% if ngo.organizer %}
+            <div class="flex items-start gap-3 px-5 py-3 bg-green-50/40">
+              <span class="text-sm w-5 text-center flex-shrink-0 mt-0.5">🏢</span>
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wide w-24 flex-shrink-0 mt-0.5">Organizer</span>
+              <div class="flex-1">
+                <p class="text-sm font-bold text-gray-800">{{ ngo.organizer.company_name }}</p>
+                {% if ngo.organizer.description %}
+                  <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ ngo.organizer.description }}</p>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+
+          </div>
+
+          <!-- About -->
+          <div class="border border-gray-100 rounded-2xl px-5 py-4">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wide mb-2">About This Activity</p>
+            <p class="text-sm text-gray-600 leading-relaxed">{{ ngo.description }}</p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── RIGHT: Action sidebar ── -->
+    <div class="lg:w-64 flex-shrink-0" style="position: sticky; top: 1.5rem;">
+
+      <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+
+        <!-- Slot ring -->
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 text-center">
+          <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Availability</p>
+
+          {% if registration and registration.ngo.id == ngo.id %}
+            <div class="slot-ring" style="border-color:#93c5fd; color:#2563eb; background:#eff6ff;">
+              <span class="text-3xl font-black leading-none">{{ ngo.available_slots }}</span>
+              <span class="text-xs text-gray-400 font-semibold mt-0.5">slots left</span>
+            </div>
+          {% elif ngo.is_full %}
+            <div class="slot-ring" style="border-color:#fca5a5; color:#dc2626; background:#fef2f2;">
+              <span class="text-3xl leading-none">✕</span>
+              <span class="text-xs text-gray-400 font-semibold mt-0.5">full</span>
+            </div>
+          {% elif ngo.is_closed %}
+            <div class="slot-ring" style="border-color:#d1d5db; color:#9ca3af; background:#f9fafb;">
+              <span class="text-2xl leading-none">🔒</span>
+              <span class="text-xs text-gray-400 font-semibold mt-0.5">closed</span>
+            </div>
+          {% elif ngo.available_slots <= 5 %}
+            <div class="slot-ring" style="border-color:#fde047; color:#ca8a04; background:#fefce8;">
+              <span class="text-3xl font-black leading-none">{{ ngo.available_slots }}</span>
+              <span class="text-xs text-gray-400 font-semibold mt-0.5">slots left</span>
+            </div>
+          {% else %}
+            <div class="slot-ring" style="border-color:#86efac; color:#15803d; background:#f0fdf4;">
+              <span class="text-3xl font-black leading-none">{{ ngo.available_slots }}</span>
+              <span class="text-xs text-gray-400 font-semibold mt-0.5">slots left</span>
+            </div>
+          {% endif %}
+
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-1.5">
+            {% if registration and registration.ngo.id == ngo.id %}
+              <div class="pct-bar-blue" data-width="{{ ngo.slots_taken_percent }}"></div>
+            {% elif ngo.is_full %}
+              <div class="pct-bar-red" data-width="100"></div>
+            {% elif ngo.available_slots <= 5 %}
+              <div class="pct-bar-yellow" data-width="{{ ngo.slots_taken_percent }}"></div>
+            {% elif ngo.is_closed %}
+              <div class="pct-bar-gray" data-width="{{ ngo.slots_taken_percent }}"></div>
+            {% else %}
+              <div class="pct-bar" data-width="{{ ngo.slots_taken_percent }}"></div>
+            {% endif %}
+          </div>
+
+          <p class="text-xs text-gray-400">{{ ngo.slots_taken }} of {{ ngo.max_slots }} slots taken</p>
+        </div>
+
+        <!-- ── Organizer mini card in sidebar ── -->
+        {% if ngo.organizer %}
+        <div class="px-5 pt-4 pb-0">
+          <div class="org-card">
+            <p class="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Organized by</p>
+            <p class="text-sm font-black text-gray-800">{{ ngo.organizer.company_name }}</p>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Action section -->
+        <div class="p-5 space-y-3">
+
+          {% if registration and registration.ngo.id == ngo.id %}
+            <div class="reg-banner bg-blue-50 border-2 border-blue-200 text-blue-700
+                        px-3 py-3 rounded-xl text-center text-xs font-bold">
+              ✅ You are registered for this activity
+            </div>
+            {% if not ngo.is_closed %}
+            <form method="POST" action="{% url 'registration:cancel' %}">
+              {% csrf_token %}
+              <button type="submit"
+                class="w-full text-sm font-black text-red-500 bg-red-50 border border-red-200
+                       hover:bg-red-100 rounded-xl py-2.5 transition">
+                Cancel Registration
+              </button>
+            </form>
+            {% else %}
+            <p class="text-xs text-center text-gray-400">Registration is now closed.</p>
+            {% endif %}
+
+          {% elif registration %}
+            <div class="bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-xl text-center">
+              <p class="text-xs text-gray-400">Currently registered for</p>
+              <p class="text-sm font-black text-gray-700 truncate">{{ registration.ngo.name }}</p>
+            </div>
+            {% if not ngo.is_full and not ngo.is_closed %}
+            <form method="POST" action="{% url 'registration:switch' ngo.id %}">
+              {% csrf_token %}
+              <button type="submit"
+                class="w-full text-sm font-black bg-gray-900 text-[#FFF4A3]
+                       hover:bg-gray-700 rounded-xl py-2.5 transition shadow-sm">
+                🔄 Switch to This Activity
+              </button>
+            </form>
+            {% endif %}
+
+          {% else %}
+            {% if not ngo.is_full and not ngo.is_closed %}
+            <form method="POST" action="{% url 'registration:register' ngo.id %}">
+              {% csrf_token %}
+              <button type="submit"
+                class="w-full text-sm font-black bg-gray-900 text-[#FFF4A3]
+                       hover:bg-gray-700 rounded-xl py-3 transition shadow-sm hover:shadow-md">
+                Register for this Activity →
+              </button>
+            </form>
+            {% elif ngo.is_full %}
+            <div class="bg-red-50 border border-red-200 text-red-500 px-3 py-3
+                        rounded-xl text-center text-xs font-bold">
+              🔴 This activity is full
+            </div>
+            {% elif ngo.is_closed %}
+            <div class="bg-gray-50 border border-gray-200 text-gray-400 px-3 py-3
+                        rounded-xl text-center text-xs font-bold">
+              🔒 Registration has closed
+            </div>
+            {% endif %}
+          {% endif %}
+
+          <p class="text-xs text-center text-gray-400 leading-relaxed">
+            Closes <strong class="text-gray-600">{{ ngo.cutoff_datetime|date:"d M Y, H:i" }}</strong>
+          </p>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  var ST_COLORS = [
+    { bg: '#dcfce7', border: '#86efac', text: '#166534' },
+    { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af' },
+    { bg: '#ede9fe', border: '#c4b5fd', text: '#5b21b6' },
+    { bg: '#ffedd5', border: '#fdba74', text: '#9a3412' },
+    { bg: '#fce7f3', border: '#f9a8d4', text: '#9d174d' },
+    { bg: '#fef9c3', border: '#fde047', text: '#854d0e' },
+    { bg: '#ccfbf1', border: '#5eead4', text: '#134e4a' },
+    { bg: '#fee2e2', border: '#fca5a5', text: '#991b1b' },
+  ];
+
+  var stColorMap = {};
+  document.querySelectorAll('#st-color-map [data-st-id]').forEach(function(el) {
+    stColorMap[el.dataset.stId] = parseInt(el.dataset.colorIndex, 10);
+  });
+
+  document.querySelectorAll('.badge-type[data-st-id]').forEach(function(el) {
+    var idx = stColorMap[el.dataset.stId];
+    if (idx !== undefined) {
+      var c = ST_COLORS[idx % ST_COLORS.length];
+      el.style.background  = c.bg;
+      el.style.borderColor = c.border;
+      el.style.color       = c.text;
+    }
+  });
+
+  document.querySelectorAll('[data-width]').forEach(function(el) {
+    el.style.width = el.dataset.width + '%';
+  });
+</script>
+
+{% endblock %}

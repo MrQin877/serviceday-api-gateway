@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  * { font-family: 'DM Sans', sans-serif; }
+  .playfair { font-family: 'Playfair Display', serif; }
+
+  .filter-select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    padding-right: 2rem; cursor: pointer;
+  }
+  .filter-select:focus { outline: none; border-color: #4ade80; }
+
+  /* pill checkbox */
+  .filter-pill input[type="checkbox"] { display: none; }
+  .filter-pill input[type="checkbox"]:checked ~ .pill-label {
+    background: #111827; color: #FFF4A3; border-color: #111827;
+  }
+  .pill-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 9999px;
+    border: 1.5px solid #e5e7eb;
+    font-size: 0.75rem; font-weight: 600;
+    color: #6b7280; background: white;
+    cursor: pointer; transition: all 0.15s;
+    user-select: none; white-space: nowrap;
+  }
+  .pill-label:hover { border-color: #9ca3af; color: #374151; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .filter-label {
+    font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: #9ca3af;
+  }
+
+  .ngo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+
+  .ngo-card {
+    background: white; border-radius: 1.25rem;
+    border: 1px solid #e5e7eb; overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+  .ngo-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.09); }
+  .ngo-card.dimmed { opacity: 0.55; }
+  .ngo-card:nth-child(1) { animation-delay: 0.05s; }
+  .ngo-card:nth-child(2) { animation-delay: 0.10s; }
+  .ngo-card:nth-child(3) { animation-delay: 0.15s; }
+  .ngo-card:nth-child(4) { animation-delay: 0.20s; }
+  .ngo-card:nth-child(5) { animation-delay: 0.25s; }
+  .ngo-card:nth-child(6) { animation-delay: 0.30s; }
+  .ngo-card:nth-child(n+7) { animation-delay: 0.30s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .slot-arc {
+    width: 60px; height: 60px; border-radius: 50%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    flex-shrink: 0; border: 3px solid;
+  }
+
+  .pct-bar        { height: 100%; border-radius: 9999px; background: linear-gradient(to right, #4ade80, #FFF4A3); }
+  .pct-bar-red    { height: 100%; border-radius: 9999px; background: #f87171; }
+  .pct-bar-yellow { height: 100%; border-radius: 9999px; background: linear-gradient(to right, #fde047, #fb923c); }
+  .pct-bar-gray   { height: 100%; border-radius: 9999px; background: #d1d5db; }
+  .pct-bar-blue   { height: 100%; border-radius: 9999px; background: linear-gradient(to right, #93c5fd, #818cf8); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.7rem; font-weight: 700;
+    padding: 3px 9px; border-radius: 9999px; border: 1px solid;
+  }
+  .badge-open   { background:#dcfce7; border-color:#86efac; color:#15803d; }
+  .badge-almost { background:#fef9c3; border-color:#fde047; color:#ca8a04; }
+  .badge-full   { background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
+  .badge-closed { background:#f3f4f6; border-color:#d1d5db; color:#6b7280; }
+  .badge-reg    { background:#dbeafe; border-color:#93c5fd; color:#2563eb; }
+  .badge-type   { border: 1px solid; }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: #93c5fd; }
+    50%       { border-color: #3b82f6; }
+  }
+  .reg-banner { animation: pulse-border 2.5s ease-in-out infinite; }
+</style>
+
+<div class="max-w-6xl mx-auto px-5 py-10">
+
+  {% if messages %}
+    <div class="mb-6 space-y-2" id="flashMessages">
+      {% for message in messages %}
+        <div class="px-4 py-3 rounded-xl text-sm font-semibold shadow flex items-center gap-2
+          {% if message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200
+          {% else %}bg-green-100 text-green-700 border border-green-200{% endif %}">
+          {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %} {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Page header -->
+  <div class="flex items-start justify-between mb-8 gap-4">
+    <div>
+      <h1 class="playfair text-4xl font-bold text-black">🌿 Service Day Opportunities</h1>
+      <p class="text-gray-500 mt-1 text-sm">Pick an activity that suits you. Slots are limited — register early.</p>
+    </div>
+
+    {% if registration %}
+      <div class="flex-shrink-0 reg-banner flex items-center gap-3
+                  bg-blue-50 border-2 border-blue-200 px-4 py-3 rounded-2xl shadow-sm">
+        <div class="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-base flex-shrink-0">✅</div>
+        <div>
+          <p class="text-xs text-blue-500 font-bold uppercase tracking-wide">Registered</p>
+          <p class="text-sm font-black text-gray-800">{{ registration.ngo.name }}</p>
+        </div>
+      </div>
+    {% else %}
+      <div class="flex-shrink-0 flex items-center gap-3
+                  bg-gray-50 border border-gray-200 px-4 py-3 rounded-2xl">
+        <div class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-base flex-shrink-0">📋</div>
+        <div>
+          <p class="text-xs text-gray-400 font-semibold">Not Registered</p>
+          <p class="text-sm text-gray-500">Choose an activity below</p>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Top bar: always visible ── -->
+  <div class="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-3.5 mb-2
+              flex flex-wrap items-center gap-3">
+
+    <div class="relative flex-shrink-0">
+      <input id="searchInput" type="text" placeholder="Search by name…" oninput="applyFilters()"
+             class="bg-gray-50 text-gray-700 placeholder-gray-400 text-sm px-4 py-2 pr-9
+                    rounded-xl border border-gray-200 w-52 focus:border-green-400 focus:outline-none transition">
+      <span class="absolute right-3 top-2.5 text-gray-400 text-xs">🔍</span>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <!-- Active badge — single element, unique id -->
+    <span id="activeBadge"
+          class="hidden text-xs font-black px-2.5 py-1 rounded-full bg-gray-900 text-[#FFF4A3]">
+      <span id="activeCount">0</span> filters
+    </span>
+
+    <select id="sortSelect" onchange="applyFilters()"
+            class="filter-select text-xs bg-white border border-gray-200 text-gray-600
+                   rounded-xl px-3 py-2 flex-shrink-0">
+      <option value="default">Sort: Default</option>
+      <option value="slots_asc">Most Available</option>
+      <option value="slots_desc">Fewest Available</option>
+      <option value="date_asc">Earliest Date</option>
+      <option value="name_asc">A → Z</option>
+    </select>
+
+    <button id="filterToggleBtn" onclick="toggleFilterPanel()"
+            class="flex items-center gap-1.5 text-xs font-bold
+                   border border-gray-200 text-gray-500
+                   hover:border-gray-400 hover:bg-gray-50
+                   rounded-xl px-3 py-2 transition flex-shrink-0">
+      Filters
+      <span id="filterToggleArrow" class="inline-block transition-transform duration-200 leading-none">⌄</span>
+    </button>
+
+    <button onclick="clearFilters()"
+            class="text-xs text-red-400 hover:text-red-600 font-semibold transition flex-shrink-0">
+      Clear all
+    </button>
+  </div>
+
+  <!-- ── Collapsible filter panel ── -->
+  <div id="filterPanel"
+       class="bg-white border border-gray-100 rounded-2xl shadow-md overflow-hidden
+              transition-all duration-300 ease-in-out mb-6"
+       style="max-height: 0; opacity: 0; padding: 0 1.25rem;">
+
+    <div class="py-5 space-y-5">
+
+      <!-- Status -->
+      <div>
+        <p class="filter-label mb-2.5">Status</p>
+        <div class="flex flex-wrap gap-2" id="statusFilters">
+          <label class="filter-pill">
+            <input type="checkbox" value="open" onchange="applyFilters()">
+            <span class="pill-label"><span class="dot" style="background:#4ade80;"></span>Open</span>
+          </label>
+          <label class="filter-pill">
+            <input type="checkbox" value="almost" onchange="applyFilters()">
+            <span class="pill-label"><span class="dot" style="background:#fde047;"></span>Almost Full</span>
+          </label>
+          <label class="filter-pill">
+            <input type="checkbox" value="registered" onchange="applyFilters()">
+            <span class="pill-label"><span class="dot" style="background:#93c5fd;"></span>Registered</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Service Type -->
+      <div>
+        <p class="filter-label mb-2.5">Service Type</p>
+        <div class="flex flex-wrap gap-2" id="typeFilters">
+          {% for service_type in service_types %}
+          <label class="filter-pill">
+            <input type="checkbox" value="{{ service_type.name }}" onchange="applyFilters()"
+                   data-st-id="{{ service_type.id }}" data-color-index="{{ forloop.counter0 }}">
+            <span class="pill-label">{{ service_type.name }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Organizer -->
+      <div>
+        <p class="filter-label mb-2.5">Organizer</p>
+        <div class="flex flex-wrap gap-2" id="orgFilters">
+          {% for org in organizers %}
+          <label class="filter-pill">
+            <input type="checkbox" value="{{ org.company_name }}" onchange="applyFilters()">
+            <span class="pill-label">🏢 {{ org.company_name }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Results count -->
+  <div class="flex items-center mb-4 px-1">
+    <p id="resultsCount" class="text-sm text-gray-500">
+      Showing <strong class="text-gray-800">{{ ngos|length }}</strong>
+      activit{% if ngos|length == 1 %}y{% else %}ies{% endif %}
+    </p>
+  </div>
+
+  <!-- Card grid -->
+  <div class="ngo-grid" id="ngoList">
+    {% for ngo in ngos %}
+      {% with status=ngo.status_label %}
+        {% include "employee_dashboard/_ngo_card.html" %}
+      {% endwith %}
+    {% empty %}
+      <div class="col-span-full bg-white rounded-2xl shadow-md border border-gray-100 p-16 text-center">
+        <div class="text-5xl mb-4">🌿</div>
+        <h3 class="text-xl font-bold text-black mb-2">No Activities Yet</h3>
+        <p class="text-gray-400">No Service Day activities are available at the moment. Check back soon!</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- No results (JS) -->
+  <div id="noResults" class="hidden bg-white rounded-2xl shadow-md border border-gray-100 p-16 text-center mt-4">
+    <div class="text-4xl mb-3">🔍</div>
+    <p class="font-bold text-gray-700 mb-1">No Activities Found</p>
+    <p class="text-sm text-gray-400 mb-4">Try adjusting your filters to see more results.</p>
+    <button onclick="clearFilters()"
+            class="text-sm bg-gray-900 text-[#FFF4A3] font-bold px-5 py-2.5 rounded-xl hover:bg-gray-700 transition">
+      Clear Filters
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // ── Service type badge colours ──────────────────────────────────────────
+  var ST_COLORS = [
+    { bg: '#dcfce7', border: '#86efac', text: '#166534' },
+    { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af' },
+    { bg: '#ede9fe', border: '#c4b5fd', text: '#5b21b6' },
+    { bg: '#ffedd5', border: '#fdba74', text: '#9a3412' },
+    { bg: '#fce7f3', border: '#f9a8d4', text: '#9d174d' },
+    { bg: '#fef9c3', border: '#fde047', text: '#854d0e' },
+    { bg: '#ccfbf1', border: '#5eead4', text: '#134e4a' },
+    { bg: '#fee2e2', border: '#fca5a5', text: '#991b1b' },
+  ];
+
+  // ✅ Fixed: build from pill inputs, not a select that no longer exists
+  var stColorMap = {};
+  document.querySelectorAll('#typeFilters input[data-st-id]').forEach(function(inp) {
+    stColorMap[inp.dataset.stId] = parseInt(inp.dataset.colorIndex, 10);
+  });
+
+  function applyBadgeTypeColors() {
+    document.querySelectorAll('.badge-type[data-st-id]').forEach(function(el) {
+      var idx = stColorMap[el.dataset.stId];
+      if (idx !== undefined) {
+        var c = ST_COLORS[idx % ST_COLORS.length];
+        el.style.background  = c.bg;
+        el.style.borderColor = c.border;
+        el.style.color       = c.text;
+      }
+    });
+  }
+  applyBadgeTypeColors();
+
+  document.querySelectorAll('[data-width]').forEach(function(el) {
+    el.style.width = el.dataset.width + '%';
+  });
+
+  // ── Filter panel toggle ─────────────────────────────────────────────────
+  var filterPanelOpen = false;
+
+  function toggleFilterPanel() {
+    filterPanelOpen = !filterPanelOpen;
+    var panel = document.getElementById('filterPanel');
+    var arrow = document.getElementById('filterToggleArrow');
+    var btn   = document.getElementById('filterToggleBtn');
+
+    if (filterPanelOpen) {
+      panel.style.maxHeight = '600px';
+      panel.style.opacity   = '1';
+      panel.style.padding   = '0 1.25rem';
+      arrow.style.transform = 'rotate(180deg)';
+      btn.style.background  = '#111827';
+      btn.style.color       = '#FFF4A3';
+      btn.style.borderColor = '#111827';
+    } else {
+      panel.style.maxHeight = '0';
+      panel.style.opacity   = '0';
+      panel.style.padding   = '0 1.25rem';
+      arrow.style.transform = 'rotate(0deg)';
+      btn.style.background  = '';
+      btn.style.color       = '';
+      btn.style.borderColor = '';
+    }
+  }
+
+  // ── Filter + sort ───────────────────────────────────────────────────────
+  function applyFilters() {
+    const search   = document.getElementById('searchInput').value.toLowerCase();
+    const statuses = [...document.querySelectorAll('#statusFilters input:checked')].map(i => i.value);
+    const types    = [...document.querySelectorAll('#typeFilters input:checked')].map(i => i.value);
+    const orgs     = [...document.querySelectorAll('#orgFilters input:checked')].map(i => i.value);
+    const sort     = document.getElementById('sortSelect').value;
+    const cards    = [...document.querySelectorAll('.ngo-card')];
+    let visible    = 0;
+
+    cards.forEach(c => {
+      const match =
+        (!search          || c.dataset.name.includes(search)) &&
+        (!statuses.length || statuses.includes(c.dataset.status)) &&
+        (!types.length    || types.includes(c.dataset.type)) &&
+        (!orgs.length     || orgs.includes(c.dataset.org));
+      c.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+
+    const list = document.getElementById('ngoList');
+    const vc   = cards.filter(c => c.style.display !== 'none');
+    if (sort === 'slots_asc')  vc.sort((a,b) => +b.dataset.slots - +a.dataset.slots);
+    if (sort === 'slots_desc') vc.sort((a,b) => +a.dataset.slots - +b.dataset.slots);
+    if (sort === 'date_asc')   vc.sort((a,b) => a.dataset.date.localeCompare(b.dataset.date));
+    if (sort === 'name_asc')   vc.sort((a,b) => a.dataset.name.localeCompare(b.dataset.name));
+    vc.forEach(c => list.appendChild(c));
+
+    document.getElementById('resultsCount').innerHTML =
+      `Showing <strong class="text-gray-800">${visible}</strong> activit${visible===1?'y':'ies'}`;
+    document.getElementById('noResults').classList.toggle('hidden', visible > 0);
+
+    // ✅ Fixed: single badge element, unique id="activeBadge"
+    const n = (search?1:0) + statuses.length + types.length + orgs.length + (sort!=='default'?1:0);
+    const badge = document.getElementById('activeBadge');
+    badge.classList.toggle('hidden', n === 0);
+    if (n > 0) document.getElementById('activeCount').textContent = n;
+  }
+
+  function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('sortSelect').value  = 'default';
+    document.querySelectorAll('#filterPanel input[type="checkbox"]').forEach(i => i.checked = false);
+    if (filterPanelOpen) toggleFilterPanel();
+    applyFilters();
+  }
+
+  // Auto-dismiss flash messages
+  var flash = document.getElementById('flashMessages');
+  if (flash) {
+    setTimeout(function() {
+      flash.style.transition = 'opacity 0.5s';
+      flash.style.opacity    = '0';
+      setTimeout(function() { flash.style.display = 'none'; }, 500);
+    }, 3000);
+  }
+</script>
+
+{% endblock %}

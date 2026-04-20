@@ -1,0 +1,1044 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+  /* service type pill */
+  .st-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: 9999px; padding: 6px 14px 6px 10px;
+    font-size: 13px; font-weight: 600; color: #374151;
+    transition: background .15s, border-color .15s;
+  }
+  .st-chip:hover { background: #dcfce7; border-color: #86efac; }
+  .st-chip .del-btn {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1;
+    transition: background .15s, color .15s;
+    padding: 0; flex-shrink: 0;
+  }
+  .st-chip .del-btn:hover { background: #fecaca; color: #dc2626; }
+  .st-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+
+  /* organizer chip */
+  .org-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #eff6ff; border: 1px solid #bfdbfe;
+    border-radius: 9999px; padding: 6px 14px 6px 10px;
+    font-size: 13px; font-weight: 600; color: #374151;
+    transition: background .15s, border-color .15s;
+  }
+  .org-chip:hover { background: #dbeafe; border-color: #93c5fd; }
+  .org-chip .del-btn { width: 18px; height: 18px; border-radius: 50%; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; transition: background .15s, color .15s; padding: 0; flex-shrink: 0; }
+  .org-chip .del-btn:hover { background: #fecaca; color: #dc2626; }
+  .org-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; background: #3b82f6; }
+
+  /* add input */
+  #st-input {
+    flex: 1; max-width: 240px;
+    background: #f0fdf4; border: 1.5px dashed #86efac;
+    border-radius: 9999px; padding: 6px 16px;
+    font-size: 13px; font-weight: 500; color: #374151;
+    outline: none; transition: border-color .2s;
+  }
+  #st-input:focus { border-color: #4ade80; border-style: solid; background: #fff; }
+  #st-input::placeholder { color: #9ca3af; }
+
+  #org-input {
+    flex: 1; max-width: 240px;
+    background: #eff6ff; border: 1.5px dashed #93c5fd;
+    border-radius: 9999px; padding: 6px 16px;
+    font-size: 13px; font-weight: 500; color: #374151;
+    outline: none; transition: border-color .2s;
+  }
+  #org-input:focus { border-color: #3b82f6; border-style: solid; background: #fff; }
+  #org-input::placeholder { color: #9ca3af; }
+
+  /* collapsible panel */
+  #st-body, #org-body {
+    overflow: hidden; max-height: 0;
+    transition: max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s;
+    opacity: 0;
+  }
+  #st-body.open, #org-body.open { max-height: 500px; opacity: 1; }
+  #st-chevron, #org-chevron { transition: transform .3s; display: inline-block; }
+  .open-chevron #st-chevron, .open-chevron #org-chevron { transform: rotate(180deg); }
+
+  /* NGO modal */
+  #ngo-modal {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.45); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center;
+  }
+  #ngo-modal.active { display: flex; }
+  #modal-box {
+    background: white; border-radius: 1.25rem; padding: 2rem;
+    width: 100%; max-width: 780px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 25px 60px rgba(0,0,0,.2);
+    animation: slideUp .25s ease;
+  }
+
+  /* delete modal */
+  #delete-modal {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.45); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center;
+  }
+  #delete-modal.active { display: flex; }
+
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* status badges */
+  .badge-open     { background: #dcfce7; color: #15803d; }
+  .badge-full     { background: #fee2e2; color: #dc2626; }
+  .badge-almost   { background: #fef9c3; color: #ca8a04; }
+  .badge-closed   { background: #f3f4f6; color: #6b7280; }
+  .badge-inactive { background: #fce7f3; color: #9d174d; }
+
+  /* form fields */
+  .form-input {
+    width: 100%; border: 1.5px solid #e5e7eb; border-radius: .75rem;
+    padding: .5rem .75rem; font-size: .875rem; color: #374151;
+    outline: none; transition: border-color .2s;
+  }
+  .form-input:focus { border-color: #4ade80; box-shadow: 0 0 0 3px #dcfce7; }
+  .form-label { font-size: .75rem; font-weight: 600; color: #6b7280; margin-bottom: .35rem; display: block; }
+
+  /* progress bars */
+  .pct-bar { height: 100%; border-radius: 9999px; background: linear-gradient(to right, #4ade80, #FFF4A3); }
+</style>
+
+
+{% if form_error %}
+<div id="js-reopen"
+     data-editing-id="{{ editing_ngo_id|default:'' }}"
+     style="display:none"></div>
+{% endif %}
+
+
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+  <!-- Django flash messages -->
+  {% if messages %}
+    <div id="flash-messages" class="mb-6 space-y-2 transition-opacity duration-500">
+      {% for message in messages %}
+        <div class="px-4 py-3 rounded-xl text-sm font-semibold shadow flex items-center gap-2
+          {% if message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200
+          {% else %}bg-green-100 text-green-700 border border-green-200{% endif %}">
+          {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %} {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Page header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="playfair text-4xl font-bold text-black">🌿 NGO Management</h1>
+      <p class="text-gray-500 mt-1 text-sm">Manage organisations, service types, organizers, and activity slots.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="bg-white rounded-full px-4 py-2 text-sm font-semibold text-gray-800 shadow-md border border-gray-100 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Administrator
+      </div>
+      <a href="{% url 'notification:settings' %}"
+        class="bg-white border border-gray-200 text-gray-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow hover:bg-gray-50 transition">
+        🔔 Notification Settings
+      </a>
+      <a href="{% url 'notification:broadcast' %}"
+        class="bg-white border border-gray-200 text-gray-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow hover:bg-gray-50 transition">
+        📢 Broadcast
+      </a>
+      <button onclick="openAddModal()"
+        class="bg-gray-900 text-[#FFF4A3] font-bold text-sm px-5 py-2.5 rounded-2xl shadow-lg hover:bg-gray-700 transition">
+        + Add New NGO
+      </button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total NGOs</p>
+      <p class="text-3xl font-bold text-black">{{ stats.total_ngos|default:"0" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Open Activities</p>
+      <p class="text-3xl font-bold text-black">{{ stats.open_count|default:"0" }}</p>
+      <p class="text-xs text-green-500 font-semibold mt-1">Accepting registrations</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Registrations</p>
+      <p class="text-3xl font-bold text-black">{{ stats.total_registrations|default:"0" }}</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-md border border-gray-100">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Slots Filled</p>
+      <p class="text-3xl font-bold text-black">{{ stats.fill_pct|default:"0" }}%</p>
+      <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div class="pct-bar" data-pct="{{ stats.fill_pct|default:0 }}"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service type manager panel -->
+  <div class="bg-white rounded-2xl shadow-md mb-5 overflow-hidden border border-gray-100">
+    <button id="st-toggle"
+      class="w-full flex items-center justify-between px-5 py-4 hover:bg-green-50 transition-colors"
+      onclick="togglePanel('st')">
+      <div class="flex items-center gap-3">
+        <span class="text-lg">🏷️</span>
+        <span class="font-bold text-gray-800 text-sm">Service Types</span>
+        <span class="bg-green-100 text-green-600 text-xs font-bold px-2.5 py-0.5 rounded-full">
+          {{ service_types|length }} type{{ service_types|length|pluralize }}
+        </span>
+      </div>
+      <div class="flex items-center gap-2 text-gray-400 text-xs font-semibold">
+        <span>Manage</span>
+        <span id="st-chevron">▾</span>
+      </div>
+    </button>
+    <div id="st-body">
+      <div class="border-t border-green-50 px-5 py-4 bg-gradient-to-br from-white to-[#f0fdf4]">
+        <div class="flex flex-wrap gap-2 mb-4">
+          {% for st in service_types %}
+            <span class="st-chip" data-color-index="{{ forloop.counter0 }}" data-st-id="{{ st.id }}">
+              <span class="st-dot"></span>
+              <span>{{ st.name }}</span>
+              <form method="post" action="{% url 'ngo:admin_delete_service_type' st.pk %}"
+                    class="delete-st-form" style="margin:0;padding:0;display:inline;">
+                {% csrf_token %}
+                <button type="button" class="del-btn st-del-btn"
+                        data-name="{{ st.name|escapejs }}"
+                        title="Delete {{ st.name }}">✕</button>
+              </form>
+            </span>
+          {% empty %}
+            <span class="text-xs text-gray-400 italic">No service types yet. Add one below.</span>
+          {% endfor %}
+        </div>
+        <form method="post" action="{% url 'ngo:admin_create_service_type' %}" class="flex items-center gap-2">
+          {% csrf_token %}
+          <input id="st-input" type="text" name="name" placeholder="New service type name…" maxlength="60">
+          <button type="submit"
+            class="bg-gray-900 text-[#FFF4A3] text-xs font-bold px-4 py-2 rounded-full hover:bg-gray-700 transition whitespace-nowrap">
+            + Add
+          </button>
+        </form>
+        <p class="text-xs text-gray-400 mt-2.5">Changes are saved immediately. Deleting a type is permanent and will affect linked NGOs.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Organizer manager panel -->
+  <div class="bg-white rounded-2xl shadow-md mb-5 overflow-hidden border border-gray-100">
+    <button id="org-toggle"
+      class="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors"
+      onclick="togglePanel('org')">
+      <div class="flex items-center gap-3">
+        <span class="text-lg">🏢</span>
+        <span class="font-bold text-gray-800 text-sm">Organizers</span>
+        <span class="bg-blue-100 text-blue-600 text-xs font-bold px-2.5 py-0.5 rounded-full">
+          {{ organizers|length }} organizer{{ organizers|length|pluralize }}
+        </span>
+      </div>
+      <div class="flex items-center gap-2 text-gray-400 text-xs font-semibold">
+        <span>Manage</span>
+        <span id="org-chevron">▾</span>
+      </div>
+    </button>
+    <div id="org-body">
+      <div class="border-t border-blue-50 px-5 py-4 bg-gradient-to-br from-white to-[#eff6ff]">
+        <div class="flex flex-wrap gap-2 mb-4">
+          {% for org in organizers %}
+            <span class="org-chip" data-org-id="{{ org.id }}">
+              <span class="org-dot"></span>
+              <span>{{ org.company_name }}</span>
+              <form method="post" action="{% url 'ngo:admin_delete_organizer' org.pk %}"
+                    class="delete-org-form" style="margin:0;padding:0;display:inline;">
+                {% csrf_token %}
+                <button type="button" class="del-btn org-del-btn"
+                        data-name="{{ org.company_name|escapejs }}"
+                        title="Delete {{ org.company_name }}">✕</button>
+              </form>
+            </span>
+          {% empty %}
+            <span class="text-xs text-gray-400 italic">No organizers yet. Add one below.</span>
+          {% endfor %}
+        </div>
+
+        <!-- Add organizer inline form -->
+        <form method="post" action="{% url 'ngo:admin_create_organizer' %}" class="flex flex-col gap-2">
+          {% csrf_token %}
+          <div class="flex items-center gap-2">
+            <input id="org-input" type="text" name="company_name" placeholder="Company name…" maxlength="100" required>
+            <button type="submit"
+              class="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-blue-700 transition whitespace-nowrap">
+              + Add
+            </button>
+          </div>
+          <textarea name="description" placeholder="Short description (optional)…"
+            class="text-xs border border-dashed border-blue-200 rounded-xl px-3 py-2 bg-white outline-none focus:border-blue-400 resize-none"
+            rows="2" maxlength="300"></textarea>
+        </form>
+
+        <p class="text-xs text-gray-400 mt-2.5">Organizers represent companies that run NGO activities. Each NGO can be linked to one organizer.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-4 mb-5">
+    <form method="get" action="{% url 'ngo:admin_dashboard' %}" class="flex flex-wrap gap-3 items-center">
+      <div class="relative flex-1 min-w-48">
+        <input name="search" value="{{ request.GET.search }}"
+          class="form-input" style="padding-left: 2.25rem;" placeholder="Search by name or location…">
+        <span class="absolute left-2.5 top-2.5 text-gray-300 text-xs">🔍</span>
+      </div>
+      <select name="status" class="form-input" style="width:auto; padding-right:2rem;">
+        <option value="">All Status</option>
+        <option value="open"    {% if request.GET.status == "open"     %}selected{% endif %}>✅ Available — slots open</option>
+        <option value="almost"  {% if request.GET.status == "almost"   %}selected{% endif %}>⚠️ Filling Up — 50%+ slots taken</option>
+        <option value="full"    {% if request.GET.status == "full"     %}selected{% endif %}>🔴 Full — no slots left</option>
+        <option value="closed"  {% if request.GET.status == "closed"   %}selected{% endif %}>🔒 Closed — registration ended</option>
+        <option value="inactive"{% if request.GET.status == "inactive" %}selected{% endif %}>👁️ Hidden — not visible to staff</option>
+      </select>
+      <button type="submit"
+        class="bg-gray-900 text-[#FFF4A3] font-semibold text-sm px-5 py-2 rounded-xl hover:bg-gray-700 transition">
+        Filter
+      </button>
+      <a href="{% url 'ngo:admin_dashboard' %}"
+        class="text-xs text-red-400 hover:text-red-600 font-medium transition">Clear all</a>
+    </form>
+  </div>
+
+  <!-- NGO table -->
+  <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="font-bold text-gray-800 text-sm">All NGOs</h2>
+      <span class="bg-green-100 text-green-600 text-xs font-bold px-2.5 py-0.5 rounded-full">
+        {{ ngos|length }} total
+      </span>
+    </div>
+
+    <table class="w-full text-sm table-fixed">
+      <thead>
+        <tr class="bg-gradient-to-r from-[#f0fdf4] to-[#fefce8]">
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[18%]">NGO Name</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[12%]">Service Type</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[13%]">Organizer</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[13%]">Location</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[10%]">Slots</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[11%]">Status</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[23%]">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+
+        {% for ngo in ngos %}
+        <tr class="hover:bg-green-50 transition-colors">
+
+          <td class="px-6 py-4">
+            <p class="font-semibold text-gray-800 truncate" title="{{ ngo.name }}">{{ ngo.name }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ ngo.service_date }}</p>
+          </td>
+
+          <td class="px-6 py-4">
+            <span class="st-type-badge text-xs font-bold px-2.5 py-1 rounded-full" data-st-id="{{ ngo.serviceType.id }}">
+              {{ ngo.serviceType.name }}
+            </span>
+          </td>
+
+          <!-- Organizer column -->
+          <td class="px-6 py-4">
+            {% if ngo.organizer %}
+              <p class="text-xs font-semibold text-blue-600 truncate" title="{{ ngo.organizer.company_name }}">🏢 {{ ngo.organizer.company_name }}</p>
+            {% else %}
+              <p class="text-xs text-gray-300 italic">None</p>
+            {% endif %}
+          </td>
+
+          <td class="px-6 py-4">
+            <p class="text-gray-500 text-xs truncate" title="{{ ngo.location }}">{{ ngo.location }}</p>
+          </td>
+
+          <td class="px-6 py-4">
+            <p class="text-gray-700 font-medium">{{ ngo.slots_taken }} / {{ ngo.max_slots }}</p>
+            <div class="mt-1 h-1 w-20 bg-gray-100 rounded-full overflow-hidden">
+              <div class="pct-bar" data-pct="{{ ngo.fill_pct }}"></div>
+            </div>
+          </td>
+
+          <td class="px-6 py-4">
+            {% if ngo.status_label == "Open" %}
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full badge-open">
+                <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>Open
+              </span>
+            {% elif ngo.status_label == "Full" %}
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full badge-full">
+                <span class="w-1.5 h-1.5 bg-red-400 rounded-full"></span>Full
+              </span>
+            {% elif ngo.status_label == "Almost Full" %}
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full badge-almost">
+                <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></span>Almost Full
+              </span>
+            {% elif ngo.status_label == "Closed" %}
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full badge-closed">
+                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>Closed
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full badge-inactive">
+                <span class="w-1.5 h-1.5 bg-pink-400 rounded-full"></span>{{ ngo.status_label }}
+              </span>
+            {% endif %}
+          </td>
+
+          <td class="px-4 py-4">
+            <div style="display:grid; grid-template-columns: 1fr 1px 1fr; gap: 0.35rem 0.6rem; align-items:center;">
+              <a href="{% url 'ngo:admin_ngo_detail' ngo.id %}"
+                class="text-xs font-semibold text-green-600 hover:text-green-800 transition whitespace-nowrap">
+                🔍 Details
+              </a>
+              <div style="width:1px; background:#e5e7eb; align-self:stretch;"></div>
+              <button
+                class="edit-ngo-btn text-xs font-semibold text-blue-500 hover:text-blue-700 transition whitespace-nowrap text-left"
+                data-id="{{ ngo.id }}"
+                data-name="{{ ngo.name|escapejs }}"
+                data-description="{{ ngo.description|escapejs }}"
+                data-service-type="{{ ngo.serviceType.id }}"
+                data-organizer="{{ ngo.organizer.id|default:'' }}"
+                data-location="{{ ngo.location|escapejs }}"
+                data-service-date="{{ ngo.service_date|date:'Y-m-d' }}"
+                data-start-time="{{ ngo.start_time|time:'H:i' }}"
+                data-end-time="{{ ngo.end_time|time:'H:i' }}"
+                data-max-slots="{{ ngo.max_slots }}"
+                data-cutoff-date="{{ ngo.cutoff_datetime|date:'Y-m-d' }}"
+                data-cutoff-time="{{ ngo.cutoff_datetime|time:'H:i' }}"
+                data-is-active="{{ ngo.is_active|yesno:'1,0' }}">
+                ✏️ Edit
+              </button>
+
+              <button type="button"
+                class="toggle-btn text-xs font-semibold transition whitespace-nowrap text-left
+                  {% if ngo.is_active %}text-yellow-500 hover:text-yellow-700{% else %}text-green-500 hover:text-green-700{% endif %}"
+                data-form="toggle-form-{{ ngo.id }}">
+                {% if ngo.is_active %}⏸ Deactivate{% else %}▶ Activate{% endif %}
+              </button>
+              <div style="width:1px; background:#e5e7eb; align-self:stretch;"></div>
+              <button
+                class="delete-ngo-btn text-xs font-semibold text-red-400 hover:text-red-600 transition whitespace-nowrap text-left"
+                data-id="{{ ngo.id }}"
+                data-name="{{ ngo.name|escapejs }}">
+                🗑 Delete
+              </button>
+            </div>
+
+            <form id="toggle-form-{{ ngo.id }}" method="post"
+                  action="{% url 'ngo:admin_toggle_active' ngo.id %}" style="display:none;">
+              {% csrf_token %}
+            </form>
+            <form id="delete-form-{{ ngo.id }}" method="post"
+                  action="{% url 'ngo:admin_delete_ngo' ngo.id %}" style="display:none;">
+              {% csrf_token %}
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="px-6 py-16 text-center">
+            <div class="text-4xl mb-3">🌿</div>
+            <p class="font-bold text-gray-700 mb-1">No NGOs found</p>
+            <p class="text-sm text-gray-400">Try adjusting your filters or add a new NGO.</p>
+          </td>
+        </tr>
+        {% endfor %}
+
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+
+<!-- Add / Edit NGO modal -->
+<div id="ngo-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div id="modal-box">
+
+    <div class="flex items-center justify-between mb-6">
+      <h2 id="modal-title" class="playfair text-2xl font-bold text-black">Add New NGO</h2>
+      <button onclick="closeModal()"
+        class="text-gray-400 hover:text-gray-700 text-xl leading-none transition">✕</button>
+    </div>
+
+    {% if form_error %}
+    <div class="mb-4 px-4 py-3 bg-red-100 text-red-700 border border-red-200 rounded-xl text-sm font-semibold">
+      ⚠️ {{ form_error }}
+    </div>
+    {% endif %}
+
+    <form id="ngo-form" method="post" action="{% url 'ngo:admin_create_ngo' %}">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-3 gap-4">
+
+        <div class="col-span-2">
+          <label class="form-label" for="f-name">NGO Name *</label>
+          <input type="text" name="name" id="f-name" required maxlength="100"
+            value="{{ form_data.name }}" class="form-input" placeholder="e.g. Green Earth Alliance">
+        </div>
+
+        <div>
+          <label class="form-label" for="f-max_slots">Max Slots *</label>
+          <input type="number" name="max_slots" id="f-max_slots" required min="1"
+            value="{{ form_data.max_slots }}" class="form-input" placeholder="e.g. 30">
+        </div>
+
+        <div class="col-span-3">
+          <label class="form-label" for="f-description">Description *</label>
+          <textarea name="description" id="f-description" required rows="3"
+            class="form-input" placeholder="Describe what volunteers will do…">{{ form_data.description }}</textarea>
+        </div>
+
+        <div class="col-span-2">
+          <label class="form-label" for="f-serviceType">Service Type *</label>
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="flex items-center gap-2 p-2 bg-gray-50 border-b border-gray-100">
+              <select name="serviceType" id="f-serviceType" required
+                class="form-input flex-1" style="border:none; background:transparent; padding: .375rem .5rem;">
+                <option value="">— Select a service type —</option>
+                {% for st in service_types %}
+                  <option value="{{ st.id }}"
+                    {% if form_data.serviceType == st.id|stringformat:"s" %}selected{% endif %}>
+                    {{ st.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div id="modal-st-chips" class="flex flex-wrap gap-1.5 px-3 py-2.5 min-h-[2.5rem]">
+              {% for st in service_types %}
+                <span class="modal-st-chip inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+                      data-id="{{ st.id }}" data-name="{{ st.name|escapejs }}" data-color-index="{{ forloop.counter0 }}">
+                  {{ st.name }}
+                  <button type="button"
+                          class="modal-del-st-btn ml-0.5 transition leading-none"
+                          data-id="{{ st.id }}"
+                          data-name="{{ st.name|escapejs }}"
+                          title="Delete {{ st.name }}">✕</button>
+                </span>
+              {% empty %}
+                <span id="modal-no-types" class="text-xs text-gray-400 italic self-center">No types yet — add one below.</span>
+              {% endfor %}
+            </div>
+            <div class="flex items-center gap-2 px-3 py-2 border-t border-gray-100 bg-gray-50">
+              <input id="modal-st-input" type="text" maxlength="60"
+                placeholder="New type name…"
+                class="flex-1 text-xs border border-dashed border-green-300 rounded-full px-3 py-1.5 bg-white outline-none focus:border-green-400 focus:border-solid"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();submitModalServiceType();}">
+              <button type="button" onclick="submitModalServiceType()"
+                class="text-xs font-bold bg-gray-900 text-[#FFF4A3] px-3 py-1.5 rounded-full hover:bg-gray-700 transition whitespace-nowrap">
+                + Add Type
+              </button>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 mt-1.5">Select a type above, or add/remove types inline without closing this form.</p>
+        </div>
+
+        <!-- Organizer dropdown -->
+        <div>
+          <label class="form-label" for="f-organizer">Organizer</label>
+          <select name="organizer" id="f-organizer" class="form-input">
+            <option value="">— No organizer —</option>
+            {% for org in organizers %}
+              <option value="{{ org.id }}"
+                {% if form_data.organizer == org.id|stringformat:"s" %}selected{% endif %}>
+                {{ org.company_name }}
+              </option>
+            {% endfor %}
+          </select>
+          <p class="text-xs text-gray-400 mt-1.5">Optional. Add organizers in the panel above first.</p>
+        </div>
+
+        <div>
+          <label class="form-label" for="f-location">Location *</label>
+          <input type="text" name="location" id="f-location" required maxlength="100"
+            value="{{ form_data.location }}" class="form-input" placeholder="e.g. Kuala Lumpur">
+        </div>
+
+        <div>
+          <label class="form-label" for="f-service_date">Service Date *</label>
+          <input type="date" name="service_date" id="f-service_date" required
+            value="{{ form_data.service_date }}" class="form-input">
+        </div>
+
+        <div>
+          <label class="form-label" for="f-start_time">Start Time *</label>
+          <input type="time" name="start_time" id="f-start_time" required
+            value="{{ form_data.start_time }}" class="form-input">
+        </div>
+
+        <div>
+          <label class="form-label" for="f-end_time">End Time *</label>
+          <input type="time" name="end_time" id="f-end_time" required
+            value="{{ form_data.end_time }}" class="form-input">
+        </div>
+
+        <div>
+          <label class="form-label" for="f-cutoff_date">Cutoff Date *</label>
+          <input type="date" name="cutoff_date" id="f-cutoff_date" required
+            value="{{ form_data.cutoff_date }}" class="form-input">
+        </div>
+
+        <div>
+          <label class="form-label" for="f-cutoff_time">Cutoff Time *</label>
+          <input type="time" name="cutoff_time" id="f-cutoff_time" required
+            value="{{ form_data.cutoff_time }}" class="form-input">
+        </div>
+
+        <div class="col-span-3 flex items-center gap-2">
+          <input type="checkbox" name="is_active" id="f-is_active" value="1"
+            {% if form_data.is_active != "0" %}checked{% endif %}
+            class="rounded accent-green-500 w-4 h-4">
+          <label for="f-is_active" class="text-sm font-medium text-gray-700 cursor-pointer">
+            Active (visible to employees)
+          </label>
+        </div>
+
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button type="submit"
+          class="flex-1 bg-gray-900 text-[#FFF4A3] font-bold py-2.5 rounded-xl hover:bg-gray-700 transition">
+          Save NGO
+        </button>
+        <button type="button" onclick="closeModal()"
+          class="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition">
+          Cancel
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+
+<!-- Delete confirm modal -->
+<div id="delete-modal" role="dialog" aria-modal="true">
+  <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center"
+       style="animation: slideUp .2s ease;">
+    <div class="text-4xl mb-3">🗑️</div>
+    <h3 class="text-lg font-bold text-gray-900 mb-2">Delete "<span id="delete-ngo-name"></span>"?</h3>
+    <p class="text-sm text-gray-500 mb-6">All linked registrations will be permanently deleted.</p>
+    <div class="flex gap-3">
+      <button id="confirm-delete-btn" type="button"
+        class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition">
+        Yes, Delete
+      </button>
+      <button type="button" onclick="closeDeleteModal()"
+        class="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Service type delete confirm modal -->
+<div id="st-delete-modal" role="dialog" aria-modal="true"
+     style="display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); backdrop-filter:blur(2px); align-items:center; justify-content:center;">
+  <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center"
+       style="animation: slideUp .2s ease;">
+    <div class="text-4xl mb-3">🏷️</div>
+    <h3 class="text-lg font-bold text-gray-900 mb-2">Delete "<span id="st-delete-name"></span>"?</h3>
+    <p class="text-sm text-gray-500 mb-6">This will permanently remove the service type and affect all linked NGOs.</p>
+    <div class="flex gap-3">
+      <button id="st-confirm-delete-btn" type="button"
+        class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition">
+        Yes, Delete
+      </button>
+      <button type="button" onclick="closeStDeleteModal()"
+        class="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Organizer delete confirm modal -->
+<div id="org-delete-modal" role="dialog" aria-modal="true"
+     style="display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); backdrop-filter:blur(2px); align-items:center; justify-content:center;">
+  <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center"
+       style="animation: slideUp .2s ease;">
+    <div class="text-4xl mb-3">🏢</div>
+    <h3 class="text-lg font-bold text-gray-900 mb-2">Delete "<span id="org-delete-name"></span>"?</h3>
+    <p class="text-sm text-gray-500 mb-6">NGOs linked to this organizer will have their organizer removed.</p>
+    <div class="flex gap-3">
+      <button id="org-confirm-delete-btn" type="button"
+        class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl transition">
+        Yes, Delete
+      </button>
+      <button type="button" onclick="closeOrgDeleteModal()"
+        class="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  // ── Color palette ──────────────────────────────────────────────────────────
+  var ST_COLORS = [
+    { bg: '#dcfce7', border: '#86efac', text: '#166534', dot: '#4ade80' },
+    { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af', dot: '#3b82f6' },
+    { bg: '#ede9fe', border: '#c4b5fd', text: '#5b21b6', dot: '#8b5cf6' },
+    { bg: '#ffedd5', border: '#fdba74', text: '#9a3412', dot: '#f97316' },
+    { bg: '#fce7f3', border: '#f9a8d4', text: '#9d174d', dot: '#ec4899' },
+    { bg: '#fef9c3', border: '#fde047', text: '#854d0e', dot: '#eab308' },
+    { bg: '#ccfbf1', border: '#5eead4', text: '#134e4a', dot: '#14b8a6' },
+    { bg: '#fee2e2', border: '#fca5a5', text: '#991b1b', dot: '#ef4444' },
+  ];
+
+  function applyChipColor(el, index) {
+    var c = ST_COLORS[index % ST_COLORS.length];
+    el.style.background  = c.bg;
+    el.style.borderColor = c.border;
+    el.style.color       = c.text;
+    el.style.borderWidth = '1px';
+    el.style.borderStyle = 'solid';
+    var dot = el.querySelector('.st-dot');
+    if (dot) dot.style.background = c.dot;
+    var delBtn = el.querySelector('.modal-del-st-btn, .del-btn');
+    if (delBtn) { delBtn.style.color = c.text; delBtn.style.background = c.border; }
+  }
+
+  document.querySelectorAll('[data-color-index]').forEach(function(el) {
+    applyChipColor(el, parseInt(el.dataset.colorIndex, 10));
+  });
+
+  var stColorMap = {};
+  document.querySelectorAll('.st-chip[data-st-id]').forEach(function(el) {
+    stColorMap[el.dataset.stId] = parseInt(el.dataset.colorIndex, 10);
+  });
+
+  document.querySelectorAll('.st-type-badge[data-st-id]').forEach(function(el) {
+    var idx = stColorMap[el.dataset.stId];
+    if (idx !== undefined) {
+      var c = ST_COLORS[idx % ST_COLORS.length];
+      el.style.background = c.bg; el.style.borderColor = c.border;
+      el.style.color = c.text; el.style.border = '1px solid ' + c.border;
+    }
+  });
+
+  // ── Date pickers ───────────────────────────────────────────────────────────
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-service_date').min = today;
+  document.getElementById('f-cutoff_date').min  = today;
+
+  // ── Progress bars ──────────────────────────────────────────────────────────
+  document.querySelectorAll('.pct-bar').forEach(function(bar) {
+    bar.style.width = (bar.dataset.pct || 0) + '%';
+  });
+
+  // ── Flash messages ─────────────────────────────────────────────────────────
+  var flash = document.getElementById('flash-messages');
+  if (flash) {
+    setTimeout(function() {
+      flash.style.opacity = '0';
+      setTimeout(function() { flash.style.display = 'none'; }, 500);
+    }, 3000);
+  }
+
+  // ── Panel toggles ──────────────────────────────────────────────────────────
+  function togglePanel(prefix) {
+    var body   = document.getElementById(prefix + '-body');
+    var toggle = document.getElementById(prefix + '-toggle');
+    var isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    toggle.classList.toggle('open-chevron', !isOpen);
+  }
+
+  // ── Service type delete ────────────────────────────────────────────────────
+  document.querySelectorAll('.st-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      openStDeleteModal(btn.dataset.name, function() {
+        btn.closest('form').submit();
+      });
+    });
+  });
+
+  // ── Organizer delete ───────────────────────────────────────────────────────
+  document.querySelectorAll('.org-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      openOrgDeleteModal(btn.dataset.name, function() {
+        btn.closest('form').submit();
+      });
+    });
+  });
+
+  // ── NGO modal ──────────────────────────────────────────────────────────────
+  var modal = document.getElementById('ngo-modal');
+  var form  = document.getElementById('ngo-form');
+  var title = document.getElementById('modal-title');
+
+  function openAddModal() {
+    title.textContent = 'Add New NGO';
+    form.action = form.dataset.addUrl;
+    form.reset();
+    document.getElementById('f-is_active').checked = true;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+  form.dataset.addUrl = '{% url "ngo:admin_create_ngo" %}';
+
+  // ── Toggle active ──────────────────────────────────────────────────────────
+  document.querySelectorAll('.toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById(btn.dataset.form).submit();
+    });
+  });
+
+  // ── Edit NGO (includes organizer field) ────────────────────────────────────
+  document.querySelectorAll('.edit-ngo-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var d = btn.dataset;
+      title.textContent = 'Edit NGO';
+      form.action = '/ngo/admin_dashboard/' + d.id + '/update/';
+      document.getElementById('f-name').value         = d.name;
+      document.getElementById('f-description').value  = d.description;
+      document.getElementById('f-serviceType').value  = d.serviceType;
+      document.getElementById('f-organizer').value    = d.organizer || '';
+      document.getElementById('f-location').value     = d.location;
+      document.getElementById('f-service_date').value = d.serviceDate;
+      document.getElementById('f-start_time').value   = d.startTime;
+      document.getElementById('f-end_time').value     = d.endTime;
+      document.getElementById('f-max_slots').value    = d.maxSlots;
+      document.getElementById('f-cutoff_date').value  = d.cutoffDate;
+      document.getElementById('f-cutoff_time').value  = d.cutoffTime;
+      document.getElementById('f-is_active').checked  = (d.isActive === '1');
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    });
+  });
+
+  // ── NGO delete modal ───────────────────────────────────────────────────────
+  var deleteModal = document.getElementById('delete-modal');
+  var confirmBtn  = document.getElementById('confirm-delete-btn');
+  var currentDeleteForm = null;
+
+  document.querySelectorAll('.delete-ngo-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('delete-ngo-name').textContent = btn.dataset.name;
+      currentDeleteForm = document.getElementById('delete-form-' + btn.dataset.id);
+      deleteModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    });
+  });
+
+  confirmBtn.addEventListener('click', function() {
+    if (currentDeleteForm) currentDeleteForm.submit();
+  });
+
+  function closeDeleteModal() {
+    deleteModal.classList.remove('active');
+    document.body.style.overflow = '';
+    currentDeleteForm = null;
+  }
+
+  deleteModal.addEventListener('click', function(e) { if (e.target === deleteModal) closeDeleteModal(); });
+
+  // ── Service type delete modal ──────────────────────────────────────────────
+  var stDeleteModal    = document.getElementById('st-delete-modal');
+  var stConfirmBtn     = document.getElementById('st-confirm-delete-btn');
+  var stDeleteCallback = null;
+
+  function openStDeleteModal(name, onConfirm) {
+    document.getElementById('st-delete-name').textContent = name;
+    stDeleteCallback = onConfirm;
+    stDeleteModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeStDeleteModal() {
+    stDeleteModal.style.display = 'none';
+    document.body.style.overflow = '';
+    stDeleteCallback = null;
+  }
+
+  stConfirmBtn.addEventListener('click', function() {
+    if (stDeleteCallback) stDeleteCallback();
+    closeStDeleteModal();
+  });
+
+  stDeleteModal.addEventListener('click', function(e) { if (e.target === stDeleteModal) closeStDeleteModal(); });
+
+  // ── Organizer delete modal ─────────────────────────────────────────────────
+  var orgDeleteModal    = document.getElementById('org-delete-modal');
+  var orgConfirmBtn     = document.getElementById('org-confirm-delete-btn');
+  var orgDeleteCallback = null;
+
+  function openOrgDeleteModal(name, onConfirm) {
+    document.getElementById('org-delete-name').textContent = name;
+    orgDeleteCallback = onConfirm;
+    orgDeleteModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeOrgDeleteModal() {
+    orgDeleteModal.style.display = 'none';
+    document.body.style.overflow = '';
+    orgDeleteCallback = null;
+  }
+
+  orgConfirmBtn.addEventListener('click', function() {
+    if (orgDeleteCallback) orgDeleteCallback();
+    closeOrgDeleteModal();
+  });
+
+  orgDeleteModal.addEventListener('click', function(e) { if (e.target === orgDeleteModal) closeOrgDeleteModal(); });
+
+  // ── Escape key ─────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeModal(); closeDeleteModal(); closeStDeleteModal(); closeOrgDeleteModal(); }
+  });
+
+  // ── Auto-reopen modal on validation error ──────────────────────────────────
+  var reopenEl = document.getElementById('js-reopen');
+  if (reopenEl) {
+    var editingId = reopenEl.dataset.editingId;
+    if (editingId) {
+      title.textContent = 'Edit NGO';
+      form.action = '/ngo/admin_dashboard/' + editingId + '/update/';
+    } else {
+      title.textContent = 'Add New NGO';
+      form.action = form.dataset.addUrl;
+    }
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  // ── Inline modal service type management ───────────────────────────────────
+  function getCSRF() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+
+  function addChipToModal(id, name) {
+      var select = document.getElementById('f-serviceType');
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name;   //textContent never executes HTML
+      opt.selected = true;
+      select.appendChild(opt);
+
+      var noTypes = document.getElementById('modal-no-types');
+      if (noTypes) noTypes.remove();
+
+      var colorIndex = document.querySelectorAll('#modal-st-chips .modal-st-chip').length;
+      var chip = document.createElement('span');
+      chip.className = 'modal-st-chip inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full';
+      chip.dataset.id = id;
+      chip.dataset.name = name;
+      chip.dataset.colorIndex = colorIndex;
+
+      //build the button safely with no innerHTML
+      var nameNode = document.createTextNode(name + ' ');
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'modal-del-st-btn ml-0.5 transition leading-none';
+      delBtn.dataset.id = id;
+      delBtn.dataset.name = name;
+      delBtn.title = 'Delete ' + name;
+      delBtn.textContent = '✕';   // ✅ safe
+      delBtn.addEventListener('click', handleModalDelBtn);
+
+      chip.appendChild(nameNode);
+      chip.appendChild(delBtn);
+
+      applyChipColor(chip, colorIndex);
+      document.getElementById('modal-st-chips').appendChild(chip);
+  }
+
+  function removeChipFromModal(id, name) {
+    var select = document.getElementById('f-serviceType');
+    var opt = select.querySelector('option[value="' + id + '"]');
+    if (opt) opt.remove();
+    var chip = document.querySelector('#modal-st-chips .modal-st-chip[data-id="' + id + '"]');
+    if (chip) chip.remove();
+    var chips = document.querySelectorAll('#modal-st-chips .modal-st-chip');
+    if (chips.length === 0) {
+      var span = document.createElement('span');
+      span.id = 'modal-no-types'; span.className = 'text-xs text-gray-400 italic self-center';
+      span.textContent = 'No types yet — add one below.';
+      document.getElementById('modal-st-chips').appendChild(span);
+    }
+  }
+
+  function handleModalDelBtn() {
+    var btn = this; var id = btn.dataset.id; var name = btn.dataset.name;
+    if (!id) { alert('Could not identify service type. Please refresh.'); return; }
+    openStDeleteModal(name, function() {
+      fetch('/ngo/admin/service-type/delete/' + id + '/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRF(), 'X-Requested-With': 'XMLHttpRequest' },
+      }).then(function(res) {
+        if (res.ok || res.redirected) {
+          removeChipFromModal(id, name);
+          document.querySelectorAll('#st-chips .st-chip').forEach(function(c) {
+            if (c.textContent.trim().includes(name)) c.remove();
+          });
+        } else {
+          alert('Could not delete "' + name + '". It may be in use by existing NGOs.');
+        }
+      }).catch(function() { alert('Network error — please try again.'); });
+    });
+  }
+
+  document.querySelectorAll('.modal-del-st-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleModalDelBtn);
+  });
+
+  function submitModalServiceType() {
+    var input = document.getElementById('modal-st-input');
+    var name  = input.value.trim();
+    if (!name) { input.focus(); return; }
+    var select = document.getElementById('f-serviceType');
+    var exists = Array.from(select.options).some(function(o) { return o.text.toLowerCase() === name.toLowerCase(); });
+    if (exists) {
+      input.style.borderColor = '#f87171'; input.placeholder = '"' + name + '" already exists'; input.value = '';
+      setTimeout(function() { input.style.borderColor = ''; input.placeholder = 'New type name…'; }, 2000);
+      return;
+    }
+    var createUrl = '{% url "ngo:admin_create_service_type" %}';
+    var formData  = new FormData();
+    formData.append('name', name); formData.append('csrfmiddlewaretoken', getCSRF());
+    fetch(createUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
+      .then(function(res) {
+        if (res.ok || res.redirected) {
+          fetch(window.location.href).then(function(r) { return r.text(); }).then(function(html) {
+            var parser = new DOMParser(); var doc = parser.parseFromString(html, 'text/html');
+            var newOpts = doc.querySelectorAll('#f-serviceType option');
+            var curOpts = Array.from(select.options).map(function(o) { return o.value; });
+            newOpts.forEach(function(o) {
+              if (o.value && !curOpts.includes(o.value) && o.text.toLowerCase() === name.toLowerCase()) {
+                addChipToModal(o.value, o.text);
+              }
+            });
+            input.value = '';
+          });
+        } else { alert('Could not create service type. Please try again.'); }
+      }).catch(function() { alert('Network error — please try again.'); });
+  }
+</script>
+
+{% endblock %}

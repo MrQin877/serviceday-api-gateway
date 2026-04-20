@@ -1,0 +1,200 @@
+<!--
+  _ngo_card.html
+  Expects: ngo, status, registration
+  Status values: open | almost | full | closed | registered | ended
+-->
+
+<div class="ngo-card {% if status == 'full' or status == 'closed' %}dimmed{% endif %}"
+     data-name="{{ ngo.name|lower }}"
+     data-status="{{ status }}"
+     data-type="{{ ngo.serviceType.name }}"
+     data-org="{{ ngo.organizer.company_name|default:'' }}"
+     data-slots="{{ ngo.available_slots }}"
+     data-date="{{ ngo.service_date|date:'Y-m-d' }}">
+
+  <!-- Top accent bar -->
+  {% if status == 'registered' %}
+    <div class="h-1 bg-gradient-to-r from-[#93c5fd] to-[#818cf8]"></div>
+  {% elif status == 'almost' %}
+    <div class="h-1 bg-gradient-to-r from-[#fde047] to-[#fb923c]"></div>
+  {% elif status == 'full' %}
+    <div class="h-1 bg-red-300"></div>
+  {% elif status == 'closed' or status == 'ended' %}
+    <div class="h-1 bg-gray-300"></div>
+  {% else %}
+    <div class="h-1 bg-gradient-to-r from-[#4ade80] to-[#FFF4A3]"></div>
+  {% endif %}
+
+  <div class="p-5">
+    <div class="flex items-start gap-4">
+
+      <!-- Slot arc ring -->
+      {% if status == 'registered' %}
+        <div class="slot-arc" style="border-color:#93c5fd; color:#2563eb; background:#eff6ff;">
+          <span class="text-lg font-black leading-none">{{ ngo.available_slots }}</span>
+          <span class="text-[9px] font-semibold text-gray-400">slots</span>
+        </div>
+      {% elif status == 'almost' %}
+        <div class="slot-arc" style="border-color:#fde047; color:#ca8a04; background:#fefce8;">
+          <span class="text-lg font-black leading-none">{{ ngo.available_slots }}</span>
+          <span class="text-[9px] font-semibold text-gray-400">slots</span>
+        </div>
+      {% elif status == 'full' %}
+        <div class="slot-arc" style="border-color:#fca5a5; color:#dc2626; background:#fef2f2;">
+          <span class="text-base leading-none">✕</span>
+        </div>
+      {% elif status == 'closed' or status == 'ended' %}
+        <div class="slot-arc" style="border-color:#d1d5db; color:#9ca3af; background:#f9fafb;">
+          <span class="text-base leading-none">🔒</span>
+        </div>
+      {% else %}
+        <div class="slot-arc" style="border-color:#86efac; color:#15803d; background:#f0fdf4;">
+          <span class="text-lg font-black leading-none">{{ ngo.available_slots }}</span>
+          <span class="text-[9px] font-semibold text-gray-400">slots</span>
+        </div>
+      {% endif %}
+
+      <!-- Main content -->
+      <div class="flex-1 min-w-0">
+
+        <!-- Badges -->
+        <div class="flex flex-wrap gap-1.5 mb-1.5">
+          {% if status == 'registered' %}
+            <span class="badge badge-reg">✅ Registered</span>
+          {% elif status == 'almost' %}
+            <span class="badge badge-almost">⚡ Almost Full</span>
+          {% elif status == 'full' %}
+            <span class="badge badge-full">Full</span>
+          {% elif status == 'closed' %}
+            <span class="badge badge-closed">🔒 Closed</span>
+          {% elif status == 'ended' %}
+            <span class="badge badge-closed">✔ Ended</span>
+          {% else %}
+            <span class="badge badge-open">Open</span>
+          {% endif %}
+
+          <span class="badge badge-type" data-st-name="{{ ngo.serviceType.name }}">
+            {{ ngo.serviceType.name }}
+          </span>
+        </div>
+
+        <h2 class="font-black text-gray-900 text-base leading-snug">{{ ngo.name }}</h2>
+        <p class="text-xs text-gray-400 mt-0.5 mb-2 truncate" title="{{ ngo.description }}">
+          {{ ngo.description }}
+        </p>
+
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 font-medium">
+          <span>📅 {{ ngo.service_date }}</span>
+          <span>🕐 {{ ngo.start_time }} – {{ ngo.end_time }}</span>
+          <span>📍 {{ ngo.location|truncatechars:22 }}</span>
+          {% if ngo.organizer %}
+            <span>🏢 {{ ngo.organizer.company_name }}</span>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="mt-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      {% if status == 'registered' %}
+        <div class="pct-bar-blue" data-width="{{ ngo.slots_taken_percent }}"></div>
+      {% elif status == 'almost' %}
+        <div class="pct-bar-yellow" data-width="{{ ngo.slots_taken_percent }}"></div>
+      {% elif status == 'full' %}
+        <div class="pct-bar-red" data-width="100"></div>
+      {% elif status == 'closed' or status == 'ended' %}
+        <div class="pct-bar-gray" data-width="{{ ngo.slots_taken_percent }}"></div>
+      {% else %}
+        <div class="pct-bar" data-width="{{ ngo.slots_taken_percent }}"></div>
+      {% endif %}
+    </div>
+
+    <!-- Slot count -->
+    <div class="flex items-center justify-between mt-1 mb-4">
+      <span class="text-xs text-gray-400">{{ ngo.slots_taken }} of {{ ngo.max_slots }} taken</span>
+      {% if status == 'almost' %}
+        <span class="text-xs font-black text-yellow-600">Only {{ ngo.available_slots }} left!</span>
+      {% elif status == 'full' %}
+        <span class="text-xs font-bold text-red-400">Full</span>
+      {% elif status == 'closed' %}
+        <span class="text-xs text-gray-400">Closed</span>
+      {% elif status == 'ended' %}
+        <span class="text-xs text-gray-400">Event ended</span>
+      {% else %}
+        <span class="text-xs font-bold text-green-600">{{ ngo.available_slots }} left</span>
+      {% endif %}
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex gap-2">
+
+      <a href="{% url 'ngo:ngo-detail' ngo.id %}"
+         class="flex-1 text-center text-xs font-semibold text-gray-500
+                border border-gray-200 hover:border-gray-400 hover:bg-gray-50
+                rounded-xl py-2.5 transition bg-white">
+        Details →
+      </a>
+
+      {% if status == 'registered' %}
+        {% if not ngo.is_closed %}
+        <form method="POST" action="{% url 'registration:cancel' %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+            class="w-full text-xs font-black text-red-500 bg-red-50 border border-red-200
+                   hover:bg-red-100 rounded-xl py-2.5 transition">
+            Cancel
+          </button>
+        </form>
+        {% endif %}
+
+      {% elif status == 'ended' %}
+        {# Employee's old event ended — treat them as free to register a new one #}
+        {% if ngo.available_slots > 0 %}
+        <form method="POST" action="{% url 'registration:register' ngo.id %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+            class="w-full text-xs font-black bg-gray-900 text-[#FFF4A3]
+                   hover:bg-gray-700 rounded-xl py-2.5 transition shadow-sm">
+            Register →
+          </button>
+        </form>
+        {% else %}
+          <div class="flex-1 text-center text-xs font-medium text-red-400
+                      bg-red-50 border border-red-100 rounded-xl py-2.5">Full</div>
+        {% endif %}
+
+      {% elif registration %}
+        {% if status == 'open' or status == 'almost' %}
+        <form method="POST" action="{% url 'registration:switch' ngo.id %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+            class="w-full text-xs font-black bg-gray-900 text-[#FFF4A3]
+                   hover:bg-gray-700 rounded-xl py-2.5 transition shadow-sm">
+            🔄 Switch Here
+          </button>
+        </form>
+        {% endif %}
+
+      {% else %}
+        {% if status == 'open' or status == 'almost' %}
+        <form method="POST" action="{% url 'registration:register' ngo.id %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+            class="w-full text-xs font-black bg-gray-900 text-[#FFF4A3]
+                   hover:bg-gray-700 rounded-xl py-2.5 transition shadow-sm">
+            Register →
+          </button>
+        </form>
+        {% elif status == 'full' %}
+          <div class="flex-1 text-center text-xs font-medium text-red-400
+                      bg-red-50 border border-red-100 rounded-xl py-2.5">Full</div>
+        {% elif status == 'closed' %}
+          <div class="flex-1 text-center text-xs font-medium text-gray-400
+                      bg-gray-50 border border-gray-200 rounded-xl py-2.5">🔒 Closed</div>
+        {% endif %}
+      {% endif %}
+
+    </div>
+  </div>
+</div>

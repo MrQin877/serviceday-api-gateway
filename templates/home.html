@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<div class="max-w-5xl mx-auto">
+
+    <!-- Hero Card -->
+    <div class="bg-white rounded-[2rem] shadow-2xl p-12 mb-10 text-center relative overflow-hidden">
+
+        <!-- Decorative background blobs -->
+        <div class="absolute -top-10 -right-10 w-48 h-48 bg-[#FFF4A3] rounded-full opacity-50"></div>
+        <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-[#B8E6B8] rounded-full opacity-50"></div>
+
+        <div class="relative z-10">
+            <!-- Badge -->
+            <span class="inline-block bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-5 py-1.5 rounded-full mb-6 shadow-sm">
+                🌱 Annual CSR Initiative
+            </span>
+
+            <!-- Headline -->
+            <h1 class="text-5xl font-bold text-black mb-4 leading-tight">
+                Give Back. <br> Make It Count.
+            </h1>
+
+            <p class="text-gray-500 text-lg max-w-xl mx-auto mb-8">
+                Join your colleagues on <strong>Service Day</strong> — a company-wide initiative where employees 
+                volunteer their time with approved NGOs, making a real difference in the community.
+            </p>
+
+            <!-- CTA Buttons -->
+            {% if user.is_authenticated %}
+                <a href="{% url 'ngo:ngo-list' %}"
+                   class="inline-block bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black font-semibold px-10 py-3 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    View Opportunities →
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}"
+                   class="inline-block bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black font-semibold px-10 py-3 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    Login to Get Started →
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Feature Cards Row -->
+    <div class="grid md:grid-cols-3 gap-6 mb-10">
+
+        <!-- Card 1 -->
+        <div class="bg-white rounded-[1.5rem] shadow-xl p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+            <div class="text-4xl mb-4">🤝</div>
+            <h3 class="text-lg font-bold text-black mb-2">Browse NGOs</h3>
+            <p class="text-gray-500 text-sm">
+                Explore approved NGO activities with full details on schedule, location, and available slots.
+            </p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white rounded-[1.5rem] shadow-xl p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+            <div class="text-4xl mb-4">📋</div>
+            <h3 class="text-lg font-bold text-black mb-2">Easy Registration</h3>
+            <p class="text-gray-500 text-sm">
+                Register for your chosen activity in one click. Switch or cancel anytime before the cut-off date.
+            </p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-white rounded-[1.5rem] shadow-xl p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+            <div class="text-4xl mb-4">📱</div>
+            <h3 class="text-lg font-bold text-black mb-2">QR Check-In</h3>
+            <p class="text-gray-500 text-sm">
+                Check in on the day with a unique QR code. Attendance is tracked automatically in real time.
+            </p>
+        </div>
+
+    </div>
+
+    <!-- How It Works Section -->
+    <div class="bg-white rounded-[2rem] shadow-2xl p-10 mb-10">
+
+        <h2 class="text-2xl font-bold text-black text-center mb-8">How It Works</h2>
+
+        <div class="grid md:grid-cols-4 gap-6 text-center">
+
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-14 bg-gradient-to-br from-[#FFF4A3] to-[#B8E6B8] rounded-full flex items-center justify-center text-xl font-bold mb-3 shadow-md">
+                    1
+                </div>
+                <h4 class="font-semibold text-black mb-1">Login</h4>
+                <p class="text-gray-400 text-sm">Sign in with your company account</p>
+            </div>
+
+            <!-- Connector line (hidden on mobile) -->
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-14 bg-gradient-to-br from-[#FFF4A3] to-[#B8E6B8] rounded-full flex items-center justify-center text-xl font-bold mb-3 shadow-md">
+                    2
+                </div>
+                <h4 class="font-semibold text-black mb-1">Browse</h4>
+                <p class="text-gray-400 text-sm">Explore available NGO activities</p>
+            </div>
+
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-14 bg-gradient-to-br from-[#FFF4A3] to-[#B8E6B8] rounded-full flex items-center justify-center text-xl font-bold mb-3 shadow-md">
+                    3
+                </div>
+                <h4 class="font-semibold text-black mb-1">Register</h4>
+                <p class="text-gray-400 text-sm">Secure your slot before it fills up</p>
+            </div>
+
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-14 bg-gradient-to-br from-[#FFF4A3] to-[#B8E6B8] rounded-full flex items-center justify-center text-xl font-bold mb-3 shadow-md">
+                    4
+                </div>
+                <h4 class="font-semibold text-black mb-1">Show Up</h4>
+                <p class="text-gray-400 text-sm">Scan QR code and make an impact</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bottom CTA Banner -->
+    {% if not user.is_authenticated %}
+    <div class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] rounded-[2rem] shadow-xl p-8 text-center">
+        <h3 class="text-2xl font-bold text-black mb-2">Ready to make a difference?</h3>
+        <p class="text-gray-600 mb-6">Login with your company account to view and register for Service Day activities.</p>
+        <a href="{% url 'login' %}"
+           class="inline-block bg-white text-black font-semibold px-10 py-3 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            Login Now →
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}
