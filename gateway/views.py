@@ -93,25 +93,85 @@ def notification_log_view(request):
 
 # ── Registration Service ──────────────────────────────
 def registration_view(request):
-    token    = request.session.get('access_token')
+    token = request.session.get('access_token')
     response = requests.get(
-        SERVICES['registration_service'] + '/api/v1/registrations/',
+        SERVICES['registration_service'] + '/api/v1/registrations/my/',  # ← fix URL to match your service
         headers={'Authorization': f'Bearer {token}'}
     )
-    registrations = response.json().get('results', []) if response.status_code == 200 else []
+    registration = response.json() if response.status_code == 200 else None
     return render(request, 'registration/list.html', {
-        'registrations': registrations
+        'registration': registration
     })
+
+
+def register_activity(request, ngo_id):
+    token = request.session.get('access_token')
+    response = requests.post(
+        SERVICES['registration_service'] + f'/api/v1/registrations/register/{ngo_id}/',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    return redirect('employee_dashboard')
+
+
+def cancel_registration(request):
+    token = request.session.get('access_token')
+    response = requests.delete(
+        SERVICES['registration_service'] + '/api/v1/registrations/cancel/',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    return redirect('employee_dashboard')
+
+
+def switch_registration(request, ngo_id):
+    token = request.session.get('access_token')
+    response = requests.put(
+        SERVICES['registration_service'] + f'/api/v1/registrations/switch/{ngo_id}/',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    return redirect('employee_dashboard')
 
 
 # ── Checkin Service ───────────────────────────────────
 def checkin_view(request):
-    token    = request.session.get('access_token')
+    token = request.session.get('access_token')
     response = requests.get(
-        SERVICES['checkin_service'] + '/api/v1/checkins/',
+        SERVICES['checkin_service'] + '/api/v1/checkins/live-monitor/',
         headers={'Authorization': f'Bearer {token}'}
     )
-    checkins = response.json().get('results', []) if response.status_code == 200 else []
+    checkins = response.json().get('checkins', []) if response.status_code == 200 else []
     return render(request, 'checkin/list.html', {
         'checkins': checkins
+    })
+
+
+def generate_qr(request, ngo_id):
+    token = request.session.get('access_token')
+    response = requests.get(
+        SERVICES['checkin_service'] + f'/api/v1/checkins/generate-qr/{ngo_id}/',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    qr_data = response.json() if response.status_code == 200 else {}
+    return render(request, 'checkin/qr.html', {
+        'qr_code': qr_data.get('qr_code_base64'),
+        'ngo_id': ngo_id
+    })
+
+
+# ← ADD THIS NEW ONE
+def scan_view(request):
+    token = request.GET.get('token')   # comes from QR URL ?token=xxx
+
+    if not token:
+        return render(request, 'checkin/success.html', {
+            'message': 'Invalid QR code.'
+        })
+
+    response = requests.post(
+        SERVICES['checkin_service'] + '/api/v1/checkins/scan/',
+        json={'token': token}
+    )
+
+    result = response.json()
+    return render(request, 'checkin/success.html', {
+        'message': result.get('message') or result.get('error')
     })
