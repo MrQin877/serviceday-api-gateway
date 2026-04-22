@@ -367,7 +367,9 @@
 
     document.getElementById('resultsCount').innerHTML =
       `Showing <strong class="text-gray-800">${visible}</strong> activit${visible===1?'y':'ies'}`;
-    document.getElementById('noResults').classList.toggle('hidden', visible > 0);
+    const hasCards = cards.length > 0;
+    document.getElementById('noResults').classList.toggle('hidden', !hasCards || visible > 0);
+
 
     // ✅ Fixed: single badge element, unique id="activeBadge"
     const n = (search?1:0) + statuses.length + types.length + orgs.length + (sort!=='default'?1:0);

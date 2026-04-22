@@ -178,7 +178,7 @@ def employee_dashboard(request):
         return redirect('login')
 
     response = requests.get(
-        SERVICES['ngo_service'] + '/api/v1/ngos/',
+        SERVICES['ngo_service'] + '/api/v1/activities/',
         headers=auth_headers(request)
     )
     ngos = response.json().get('results', []) if response.status_code == 200 else []
@@ -190,7 +190,7 @@ def employee_ngo_detail(request, ngo_id):
         return redirect('login')
 
     response = requests.get(
-        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
+        SERVICES['ngo_service'] + f'/api/v1/activities/{ngo_id}/',
         headers=auth_headers(request)
     )
     ngo = response.json() if response.status_code == 200 else {}
@@ -200,49 +200,273 @@ def employee_ngo_detail(request, ngo_id):
 # ── Admin Dashboard ───────────────────────────────────────────
 
 def admin_dashboard(request):
-    if not is_logged_in(request) or not is_admin(request):
+    if not is_logged_in(request):
         return redirect('login')
+    if request.session.get('role') != 'admin':
+        return redirect('home')
 
-    response = requests.get(
-        SERVICES['ngo_service'] + '/api/v1/ngos/',
+    # fetch stats
+    stats_resp = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/ngos/dashboard/',
         headers=auth_headers(request)
     )
-    ngos = response.json().get('results', []) if response.status_code == 200 else []
-    return render(request, 'admin_dashboard/list.html', {'ngos': ngos})
+    stats = stats_resp.json().get('data', {}) if stats_resp.status_code == 200 else {}
+
+    # fetch NGOs with optional filters
+    params = {}
+    if request.GET.get('search'):   params['search']  = request.GET['search']
+    if request.GET.get('status'):   params['status']  = request.GET['status']
+
+    ngos_resp = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/ngos/',
+        headers=auth_headers(request),
+        params=params
+    )
+    ngos_data = ngos_resp.json().get('data', {}) if ngos_resp.status_code == 200 else {}
+    ngos      = ngos_data.get('results', [])
+
+    # fetch service types and organizers
+    st_resp  = requests.get(SERVICES['ngo_service'] + '/api/v1/service-types/', headers=auth_headers(request))
+    org_resp = requests.get(SERVICES['ngo_service'] + '/api/v1/organizers/',    headers=auth_headers(request))
+
+    service_types = st_resp.json().get('data', [])  if st_resp.status_code  == 200 else []
+    organizers    = org_resp.json().get('data', [])  if org_resp.status_code == 200 else []
+
+    # add computed fields to each ngo dict so template works
+    for ngo in ngos:
+        taken     = ngo.get('slots_taken', 0)
+        max_slots = ngo.get('max_slots', 1)
+        ngo['fill_pct']     = round(taken / max_slots * 100) if max_slots else 0
+        ngo['status_label'] = {
+            'open':       'Open',
+            'almost_full':'Almost Full',
+            'full':       'Full',
+            'closed':     'Closed',
+            'inactive':   'Inactive',
+        }.get(ngo.get('status', ''), 'Unknown')
+
+    return render(request, 'admin_dashboard/list.html', {
+        'stats':         stats,
+        'ngos':          ngos,
+        'service_types': service_types,
+        'organizers':    organizers,
+    })
+
+
+def admin_ngo_detail(request, ngo_id):
+    if not is_logged_in(request):
+        return redirect('login')
+    if request.session.get('role') != 'admin':
+        return redirect('home')
+
+    ngo_resp = requests.get(
+        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    if ngo_resp.status_code != 200:
+        return redirect('admin_dashboard')
+
+    ngo  = ngo_resp.json().get('data', {})
+    taken     = ngo.get('slots_taken', 0)
+    max_slots = ngo.get('max_slots', 1)
+    ngo['fill_pct'] = round(taken / max_slots * 100) if max_slots else 0
+
+    return render(request, 'admin_dashboard/detail.html', {
+        'ngo':          ngo,
+        'status_label': ngo.get('status_label', ''),
+        'fill_pct':     ngo['fill_pct'],
+        'registrations': [],  # wire registration-service later
+    })
+
+
+def admin_create_ngo(request):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    response = requests.post(
+        SERVICES['ngo_service'] + '/api/v1/ngos/',
+        json=request.POST.dict(),
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_update_ngo(request, ngo_id):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.patch(
+        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
+        json=request.POST.dict(),
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_delete_ngo(request, ngo_id):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.delete(
+        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_toggle_active(request, ngo_id):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.patch(
+        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/toggle-active/',
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_create_service_type(request):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.post(
+        SERVICES['ngo_service'] + '/api/v1/service-types/',
+        json={'name': request.POST.get('name', '')},
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_delete_service_type(request, pk):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.delete(
+        SERVICES['ngo_service'] + f'/api/v1/service-types/{pk}/',
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_create_organizer(request):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.post(
+        SERVICES['ngo_service'] + '/api/v1/organizers/',
+        json={
+            'company_name': request.POST.get('company_name', ''),
+            'description':  request.POST.get('description', ''),
+        },
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
+
+
+def admin_delete_organizer(request, pk):
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+    requests.delete(
+        SERVICES['ngo_service'] + f'/api/v1/organizers/{pk}/',
+        headers=auth_headers(request)
+    )
+    return redirect('admin_dashboard')
 
 
 # ── Notification ──────────────────────────────────────────────
 
 def broadcast_view(request):
-    if not is_logged_in(request) or not is_admin(request):
+    if not is_logged_in(request):
         return redirect('login')
+    if request.session.get('role') != 'admin':
+        return redirect('home')
 
     if request.method == 'POST':
-        requests.post(
+        subject  = request.POST.get('subject', '').strip()
+        body     = request.POST.get('body', '').strip()
+        target   = request.POST.get('target', 'all')
+        ngo_ids  = request.POST.getlist('ngo_ids')
+
+        response = requests.post(
             SERVICES['notification_service'] + '/api/v1/notifications/broadcasts/',
-            json={'message': request.POST.get('message')},
+            json={
+                'subject': subject,
+                'body':    body,
+                'target':  target,
+                'ngo_ids': ngo_ids,
+            },
             headers=auth_headers(request)
         )
-        return redirect('broadcast')
+        if response.status_code == 201:
+            return redirect('broadcast')
+        # handle error
+        return render(request, 'notification/broadcast.html', {
+            'error': response.json().get('detail', 'Failed to send broadcast.'),
+        })
 
-    response = requests.get(
+    # GET — fetch broadcast history
+    history  = requests.get(
         SERVICES['notification_service'] + '/api/v1/notifications/broadcasts/',
         headers=auth_headers(request)
     )
-    broadcasts = response.json().get('results', []) if response.status_code == 200 else []
-    return render(request, 'notification/broadcast.html', {'broadcasts': broadcasts})
+    ngo_list = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/ngos/',
+        headers=auth_headers(request)
+    )
+    return render(request, 'notification/broadcast.html', {
+        'broadcast_history': history.json() if history.status_code == 200 else [],
+        'ngo_list':          ngo_list.json().get('results', []) if ngo_list.status_code == 200 else [],
+    })
 
 
 def notification_log_view(request):
-    if not is_logged_in(request) or not is_admin(request):
+    if not is_logged_in(request):
         return redirect('login')
+    if request.session.get('role') != 'admin':
+        return redirect('home')
 
-    response = requests.get(
+    filter_type = request.GET.get('type', '')
+    params      = {'notification_type': filter_type} if filter_type else {}
+
+    logs  = requests.get(
         SERVICES['notification_service'] + '/api/v1/notifications/logs/',
+        headers=auth_headers(request),
+        params=params
+    )
+    return render(request, 'notification/log.html', {
+        'logs':        logs.json() if logs.status_code == 200 else [],
+        'filter_type': filter_type,
+    })
+
+
+def notification_settings_view(request):
+    if not is_logged_in(request):
+        return redirect('login')
+    if request.session.get('role') != 'admin':
+        return redirect('home')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add':
+            requests.post(
+                SERVICES['notification_service'] + '/api/v1/notifications/reminders/',
+                json={'interval_days': request.POST.get('interval_days'), 'is_active': True},
+                headers=auth_headers(request)
+            )
+        elif action == 'delete':
+            requests.delete(
+                SERVICES['notification_service'] + f'/api/v1/notifications/reminders/{request.POST.get("config_id")}/',
+                headers=auth_headers(request)
+            )
+        elif action == 'toggle':
+            requests.patch(
+                SERVICES['notification_service'] + f'/api/v1/notifications/reminders/{request.POST.get("config_id")}/',
+                json={},
+                headers=auth_headers(request)
+            )
+        return redirect('notification_settings')
+
+    configs = requests.get(
+        SERVICES['notification_service'] + '/api/v1/notifications/reminders/',
         headers=auth_headers(request)
     )
-    logs = response.json().get('results', []) if response.status_code == 200 else []
-    return render(request, 'notification/log.html', {'logs': logs})
+    return render(request, 'notification/settings.html', {
+        'configs':       configs.json() if configs.status_code == 200 else [],
+        'quick_presets': [1, 3, 7, 14],
+    })
 
 
 # ── Registration ──────────────────────────────────────────────

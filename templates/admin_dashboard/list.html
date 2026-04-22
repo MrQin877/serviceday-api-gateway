@@ -147,11 +147,11 @@
       <div class="bg-white rounded-full px-4 py-2 text-sm font-semibold text-gray-800 shadow-md border border-gray-100 flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Administrator
       </div>
-      <a href="{% url 'notification:settings' %}"
+      <a href="{% url 'notification_settings' %}"
         class="bg-white border border-gray-200 text-gray-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow hover:bg-gray-50 transition">
         🔔 Notification Settings
       </a>
-      <a href="{% url 'notification:broadcast' %}"
+      <a href="{% url 'broadcast' %}"
         class="bg-white border border-gray-200 text-gray-700 font-bold text-sm px-5 py-2.5 rounded-2xl shadow hover:bg-gray-50 transition">
         📢 Broadcast
       </a>
@@ -210,7 +210,7 @@
             <span class="st-chip" data-color-index="{{ forloop.counter0 }}" data-st-id="{{ st.id }}">
               <span class="st-dot"></span>
               <span>{{ st.name }}</span>
-              <form method="post" action="{% url 'ngo:admin_delete_service_type' st.pk %}"
+              <form method="post" action="{% url 'admin_delete_service_type' st.pk %}"
                     class="delete-st-form" style="margin:0;padding:0;display:inline;">
                 {% csrf_token %}
                 <button type="button" class="del-btn st-del-btn"
@@ -222,7 +222,7 @@
             <span class="text-xs text-gray-400 italic">No service types yet. Add one below.</span>
           {% endfor %}
         </div>
-        <form method="post" action="{% url 'ngo:admin_create_service_type' %}" class="flex items-center gap-2">
+        <form method="post" action="{% url 'admin_create_service_type' %}" class="flex items-center gap-2">
           {% csrf_token %}
           <input id="st-input" type="text" name="name" placeholder="New service type name…" maxlength="60">
           <button type="submit"
@@ -259,7 +259,7 @@
             <span class="org-chip" data-org-id="{{ org.id }}">
               <span class="org-dot"></span>
               <span>{{ org.company_name }}</span>
-              <form method="post" action="{% url 'ngo:admin_delete_organizer' org.pk %}"
+              <form method="post" action="{% url 'admin_delete_organizer' org.pk %}"
                     class="delete-org-form" style="margin:0;padding:0;display:inline;">
                 {% csrf_token %}
                 <button type="button" class="del-btn org-del-btn"
@@ -273,7 +273,7 @@
         </div>
 
         <!-- Add organizer inline form -->
-        <form method="post" action="{% url 'ngo:admin_create_organizer' %}" class="flex flex-col gap-2">
+        <form method="post" action="{% url 'admin_create_organizer' %}" class="flex flex-col gap-2">
           {% csrf_token %}
           <div class="flex items-center gap-2">
             <input id="org-input" type="text" name="company_name" placeholder="Company name…" maxlength="100" required>
@@ -294,7 +294,7 @@
 
   <!-- Filter bar -->
   <div class="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-4 mb-5">
-    <form method="get" action="{% url 'ngo:admin_dashboard' %}" class="flex flex-wrap gap-3 items-center">
+    <form method="get" action="{% url 'admin_dashboard' %}" class="flex flex-wrap gap-3 items-center">
       <div class="relative flex-1 min-w-48">
         <input name="search" value="{{ request.GET.search }}"
           class="form-input" style="padding-left: 2.25rem;" placeholder="Search by name or location…">
@@ -312,7 +312,7 @@
         class="bg-gray-900 text-[#FFF4A3] font-semibold text-sm px-5 py-2 rounded-xl hover:bg-gray-700 transition">
         Filter
       </button>
-      <a href="{% url 'ngo:admin_dashboard' %}"
+      <a href="{% url 'admin_dashboard' %}"
         class="text-xs text-red-400 hover:text-red-600 font-medium transition">Clear all</a>
     </form>
   </div>
@@ -400,7 +400,7 @@
 
           <td class="px-4 py-4">
             <div style="display:grid; grid-template-columns: 1fr 1px 1fr; gap: 0.35rem 0.6rem; align-items:center;">
-              <a href="{% url 'ngo:admin_ngo_detail' ngo.id %}"
+              <a href="{% url 'admin_ngo_detail' ngo.id %}"
                 class="text-xs font-semibold text-green-600 hover:text-green-800 transition whitespace-nowrap">
                 🔍 Details
               </a>
@@ -439,11 +439,11 @@
             </div>
 
             <form id="toggle-form-{{ ngo.id }}" method="post"
-                  action="{% url 'ngo:admin_toggle_active' ngo.id %}" style="display:none;">
+                  action="{% url 'admin_toggle_active' ngo.id %}" style="display:none;">
               {% csrf_token %}
             </form>
             <form id="delete-form-{{ ngo.id }}" method="post"
-                  action="{% url 'ngo:admin_delete_ngo' ngo.id %}" style="display:none;">
+                  action="{% url 'admin_delete_ngo' ngo.id %}" style="display:none;">
               {% csrf_token %}
             </form>
           </td>
@@ -481,7 +481,7 @@
     </div>
     {% endif %}
 
-    <form id="ngo-form" method="post" action="{% url 'ngo:admin_create_ngo' %}">
+    <form id="ngo-form" method="post" action="{% url 'admin_create_ngo' %}">
       {% csrf_token %}
 
       <div class="grid grid-cols-3 gap-4">
@@ -799,7 +799,7 @@
   }
 
   modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
-  form.dataset.addUrl = '{% url "ngo:admin_create_ngo" %}';
+  form.dataset.addUrl = '{% url "admin_create_ngo" %}';
 
   // ── Toggle active ──────────────────────────────────────────────────────────
   document.querySelectorAll('.toggle-btn').forEach(function(btn) {
@@ -1019,7 +1019,7 @@
       setTimeout(function() { input.style.borderColor = ''; input.placeholder = 'New type name…'; }, 2000);
       return;
     }
-    var createUrl = '{% url "ngo:admin_create_service_type" %}';
+    var createUrl = '{% url "admin_create_service_type" %}';
     var formData  = new FormData();
     formData.append('name', name); formData.append('csrfmiddlewaretoken', getCSRF());
     fetch(createUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })

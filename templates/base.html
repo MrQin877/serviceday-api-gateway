@@ -32,80 +32,61 @@
 
             {% if user.is_authenticated %}
 
-                {% if user.groups.all|length > 0 %}
-                    {% with group=user.groups.first %}
+                {% if user.role == "admin" %}
+                <!-- ========== ADMIN NAV ========== -->
 
-                        {% if group.name == "Administrator" %}
-                        <!-- ========== ADMIN NAV ========== -->
+                    <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
+                        Home
+                    </a>
 
-                            <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
-                                Home
-                            </a>
+                    <a href="{% url 'admin_dashboard' %}" class="text-gray-700 hover:text-black transition">
+                        Admin Dashboard
+                    </a>
 
-                            <a href="{% url 'ngo:admin_dashboard' %}" class="text-gray-700 hover:text-black transition">
-                                Admin Dashboard
-                            </a>
+                    <a href="{% url 'broadcast' %}" class="text-gray-700 hover:text-black transition">
+                        Broadcast
+                    </a>
 
-                            <a href="{% url 'notification:broadcast' %}" class="text-gray-700 hover:text-black transition">
-                                Broadcast
-                            </a>
+                    <a href="{% url 'notification_log' %}" class="text-gray-700 hover:text-black transition">
+                        Notification Log
+                    </a>
 
-                            <a href="{% url 'notification:log' %}" class="text-gray-700 hover:text-black transition">
-                                Notification Log
-                            </a>
+                    <div class="flex items-center space-x-3">
+                        <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
+                            👤 {{ user.username }}
+                            <span class="text-xs text-gray-500 ml-1">(Admin)</span>
+                        </span>
+                        <form method="POST" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
+                                Logout
+                            </button>
+                        </form>
+                    </div>
 
-                            <div class="flex items-center space-x-3">
-                                <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
-                                    👤 {{ user.username }}
-                                    <span class="text-xs text-gray-500 ml-1">(Admin)</span>
-                                </span>
-                                <form method="POST" action="{% url 'logout' %}">
-                                    {% csrf_token %}
-                                    <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
-                                        Logout
-                                    </button>
-                                </form>
-                            </div>
+                {% elif user.role == "employee" %}
+                <!-- ========== EMPLOYEE NAV ========== -->
 
-                        {% elif group.name == "Employee" %}
-                        <!-- ========== EMPLOYEE NAV ========== -->
+                    <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
+                        Home
+                    </a>
 
-                            <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
-                                Home
-                            </a>
+                    <a href="{% url 'employee_dashboard' %}" class="text-gray-700 hover:text-black transition">
+                        Opportunities
+                    </a>
 
-                            <a href="{% url 'ngo:ngo-list' %}" class="text-gray-700 hover:text-black transition">
-                                Opportunities
-                            </a>
-
-                            <div class="flex items-center space-x-3">
-                                <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
-                                    👤 {{ user.username }}
-                                    <span class="text-xs text-gray-500 ml-1">(Employee)</span>
-                                </span>
-                                <form method="POST" action="{% url 'logout' %}">
-                                    {% csrf_token %}
-                                    <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
-                                        Logout
-                                    </button>
-                                </form>
-                            </div>
-
-                        {% endif %}
-
-                    {% endwith %}
-
-                {% else %}
-                <!-- fallback: logged in but no group assigned yet -->
-                <!-- this should not happen after apps.py ready() runs -->
-
-                    <span class="text-gray-400 text-sm">No role assigned</span>
-                    <form method="POST" action="{% url 'logout' %}">
-                        {% csrf_token %}
-                        <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
-                            Logout
-                        </button>
-                    </form>
+                    <div class="flex items-center space-x-3">
+                        <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
+                            👤 {{ user.username }}
+                            <span class="text-xs text-gray-500 ml-1">(Employee)</span>
+                        </span>
+                        <form method="POST" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
+                                Logout
+                            </button>
+                        </form>
+                    </div>
 
                 {% endif %}
 

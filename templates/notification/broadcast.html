@@ -24,15 +24,15 @@
       <p class="text-gray-500 mt-1 text-sm">Send an announcement to all employees or activity participants.</p>
     </div>
     <div class="flex items-center gap-3">
-      <a href="{% url 'notification:settings' %}"
+      <a href="{% url 'notification_settings' %}"
          class="bg-white border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-2xl shadow hover:bg-gray-50 transition">
         🔔 Settings
       </a>
-      <a href="{% url 'notification:log' %}"
+      <a href="{% url 'notification_log' %}"
          class="bg-white border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-2xl shadow hover:bg-gray-50 transition">
         📋 View Log
       </a>
-      <a href="{% url 'ngo:admin_dashboard' %}"
+      <a href="{% url 'admin_dashboard' %}"
          class="bg-gray-900 text-yellow-300 font-bold text-sm px-4 py-2.5 rounded-2xl shadow hover:bg-gray-700 transition">
         ← Dashboard
       </a>
@@ -51,7 +51,7 @@
           The view handles method == 'POST' to send the broadcast
           Same pattern as the manage_fruits form in Lab 3
         -->
-        <form method="post" action="{% url 'notification:broadcast' %}">
+        <form method="post" action="{% url 'broadcast' %}">
           {% csrf_token %}
 
           <!-- Field 1: Target Audience -->
