@@ -1,3 +1,4 @@
+from django.urls import reverse
 import requests
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -24,12 +25,7 @@ def is_admin(request):
 # ── Home ──────────────────────────────────────────────────────
 
 def home(request):
-    if not is_logged_in(request):
-        return redirect('login')
-    if is_admin(request):
-        return redirect('admin_dashboard')
-    return redirect('employee_dashboard')
-
+    return render(request, 'home.html')
 
 # ── Auth ──────────────────────────────────────────────────────
 
@@ -83,11 +79,29 @@ def logout_view(request):
     request.session.flush()
     return redirect('login')
 
+def verify_email_view(request, token):
+    """
+    GET /verify-email/<token>/
+    User clicks link from email → gateway calls user-service to activate.
+    """
+    res = requests.post(
+        SERVICES['user_service'] + '/api/v1/users/verify-email/',
+        json={'token': token}
+    )
+
+    if res.status_code == 200:
+        return render(request, 'accounts/verify_success.html', {
+            'message': 'Email verified! You can now log in.'
+        })
+
+    return render(request, 'accounts/verify_success.html', {
+        'error': 'This verification link is invalid or has expired.'
+    })
 
 def register_view(request):
     if is_logged_in(request):
         return redirect('home')
-
+ 
     if request.method == 'POST':
         payload = {
             'username':   request.POST.get('username', '').strip(),
@@ -102,31 +116,37 @@ def register_view(request):
             json=payload
         )
         if response.status_code == 201:
-            return render(request, 'accounts/login.html', {
-                'success': 'Account created! Please log in.'
-            })
+            email = payload['email']
+            # ← redirect to the "check your inbox" page, pass email via query param
+            return redirect(f"{reverse('register_sent')}?email={email}")
+ 
         errors = response.json()
         return render(request, 'accounts/register.html', {'errors': errors})
-
+ 
     return render(request, 'accounts/register.html')
+ 
+ 
+def register_sent_view(request):
+    email = request.GET.get('email', '')
+    return render(request, 'accounts/verification_sent.html', {'email': email})
 
 
 def forgot_password_view(request):
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
-        response = requests.post(
+        requests.post(
             SERVICES['user_service'] + '/api/v1/users/forgot-password/',
             json={'email': email}
         )
-        data = response.json()
-        # dev only — in production token comes via email
-        token = data.get('token')
-        if token:
-            return redirect('reset_password', token=token)
-        return render(request, 'accounts/forgot_password.html', {
-            'message': data.get('message')
-        })
+        # Always go to sent page regardless of response
+        return redirect(f"{reverse('forgot_password_sent')}?email={email}")
+
     return render(request, 'accounts/forgot_password.html')
+
+
+def forgot_password_sent_view(request):
+    email = request.GET.get('email', '')
+    return render(request, 'accounts/forgot_password_sent.html', {'email': email})
 
 
 def reset_password_view(request, token):
