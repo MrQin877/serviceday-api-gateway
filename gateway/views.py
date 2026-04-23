@@ -515,6 +515,22 @@ def switch_registration(request, ngo_id):
     )
     return redirect('employee_dashboard')
 
+def participants_view(request, ngo_id):
+    if not is_logged_in(request) or not is_admin(request):
+        return redirect('login')
+
+    response = requests.get(
+        SERVICES['registration_service'] + f'/api/v1/registrations/participants/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    data = response.json() if response.status_code == 200 else {}
+    return render(request, 'registration/participants.html', {
+        'participants': data.get('results', {}).get('participants', []),
+        'ngo_id': ngo_id,
+        'count': data.get('count', 0),
+        'source': data.get('results', {}).get('source', ''),
+    })
+
 
 # ── Checkin ───────────────────────────────────────────────────
 
@@ -546,13 +562,17 @@ def generate_qr(request, ngo_id):
 
 
 def scan_view(request):
-    token = request.GET.get('token')
-    if not token:
+    if not is_logged_in(request):
+        return redirect('login')
+
+    ngo_id = request.GET.get('ngo_id')
+    if not ngo_id:
         return render(request, 'checkin/success.html', {'message': 'Invalid QR code.'})
 
     response = requests.post(
         SERVICES['checkin_service'] + '/api/v1/checkins/scan/',
-        json={'token': token}
+        json={'ngo_id': int(ngo_id)},
+        headers=auth_headers(request)   # ← employee JWT sent here
     )
     result = response.json()
     return render(request, 'checkin/success.html', {
