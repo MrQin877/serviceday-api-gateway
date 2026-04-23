@@ -218,6 +218,7 @@ def employee_dashboard(request):
     )
 
     # fetch registration
+    # fetch registration
     try:
         reg_resp = requests.get(
             SERVICES['registration_service'] + '/api/v1/registrations/my/',
@@ -226,20 +227,25 @@ def employee_dashboard(request):
         )
         registration = reg_resp.json() if reg_resp.status_code == 200 else None
 
-        # normalize
-        if registration and registration.get('registration') is None:
-            registration = None
+        # ← FIXED normalization
+        if registration:
+            if registration.get('registration') is None and 'ngo_id' not in registration:
+                registration = None  # genuinely no registration
 
-        if registration and registration.get('ngo_id'):
+    except Exception:
+        registration = None
+
+    # fetch NGO name for banner
+    if registration and registration.get('ngo_id'):
+        try:
             ngo_detail_resp = requests.get(
                 SERVICES['ngo_service'] + f'/api/v1/activities/{registration["ngo_id"]}/',
                 headers=auth_headers(request)
             )
             if ngo_detail_resp.status_code == 200:
-                registration['ngo'] = ngo_detail_resp.json()  # ← adds ngo object
-
-    except Exception:
-        registration = None
+                registration['ngo'] = ngo_detail_resp.json()
+        except Exception:
+            pass
 
     # add computed fields
     for ngo in ngos:
@@ -254,12 +260,12 @@ def employee_dashboard(request):
             'inactive':    'inactive',
         }.get(ngo.get('status', ''), 'open')
 
-    # ← KEY FIX: mark registered NGO
+    # ← FIXED: mark registered NGO with int() conversion
     if registration and registration.get('ngo_id'):
-        registered_ngo_id = registration.get('ngo_id')
+        registered_ngo_id = int(registration.get('ngo_id'))   # ← int()
         for ngo in ngos:
-            if ngo.get('id') == registered_ngo_id:
-                ngo['status_label'] = 'registered'   # ← this makes Cancel show ✅
+            if int(ngo.get('id', 0)) == registered_ngo_id:    # ← int() both sides
+                ngo['status_label'] = 'registered'
                 break
 
 
@@ -300,6 +306,7 @@ def employee_ngo_detail(request, ngo_id):
     ngo['end_time']   = ngo.get('end_time',   '')[:5]
 
     # ── fetch registration ─────────────────────────────
+    # fetch registration
     try:
         reg_resp = requests.get(
             SERVICES['registration_service'] + '/api/v1/registrations/my/',
@@ -307,6 +314,12 @@ def employee_ngo_detail(request, ngo_id):
             timeout=5,
         )
         registration = reg_resp.json() if reg_resp.status_code == 200 else None
+
+        # ← same fix
+        if registration:
+            if registration.get('registration') is None and 'ngo_id' not in registration:
+                registration = None
+
     except Exception:
         registration = None
 
