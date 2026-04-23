@@ -291,21 +291,23 @@ def employee_ngo_detail(request, ngo_id):
     )
     ngo = ngo_resp.json() if ngo_resp.status_code == 200 else {}
 
-    # ── split cutoff_datetime ──────────────────────────
+    # fix ngo id to int
+    if ngo.get('id'):
+        ngo['id'] = int(ngo['id'])
+
+    # split cutoff_datetime
     cutoff = ngo.get('cutoff_datetime', '')
     if cutoff:
         cutoff_clean       = cutoff[:19]
-        ngo['cutoff_date'] = cutoff_clean[:10]    # "2026-05-08"
-        ngo['cutoff_time'] = cutoff_clean[11:16]  # "23:59"
+        ngo['cutoff_date'] = cutoff_clean[:10]
+        ngo['cutoff_time'] = cutoff_clean[11:16]
     else:
         ngo['cutoff_date'] = ''
         ngo['cutoff_time'] = ''
 
-    # ── fix time format ────────────────────────────────
     ngo['start_time'] = ngo.get('start_time', '')[:5]
     ngo['end_time']   = ngo.get('end_time',   '')[:5]
 
-    # ── fetch registration ─────────────────────────────
     # fetch registration
     try:
         reg_resp = requests.get(
@@ -315,10 +317,23 @@ def employee_ngo_detail(request, ngo_id):
         )
         registration = reg_resp.json() if reg_resp.status_code == 200 else None
 
-        # ← same fix
+        # normalize
         if registration:
             if registration.get('registration') is None and 'ngo_id' not in registration:
                 registration = None
+
+        # ← ADD THIS — fetch ngo object for template comparison
+        if registration and registration.get('ngo_id'):
+            registration['ngo_id'] = int(registration['ngo_id'])  # ← fix type
+
+            reg_ngo_resp = requests.get(
+                SERVICES['ngo_service'] + f'/api/v1/activities/{registration["ngo_id"]}/',
+                headers=auth_headers(request)
+            )
+            if reg_ngo_resp.status_code == 200:
+                reg_ngo = reg_ngo_resp.json()
+                reg_ngo['id'] = int(reg_ngo['id'])  # ← fix type
+                registration['ngo'] = reg_ngo        # ← adds ngo.id for template
 
     except Exception:
         registration = None
@@ -773,35 +788,89 @@ def participants_view(request, ngo_id):
 
 # ── Checkin ───────────────────────────────────────────────────
 
-def checkin_view(request, ngo_id):           # ← add ngo_id param
+def checkin_view(request, ngo_id):
     if not is_logged_in(request) or not is_admin(request):
         return redirect('login')
 
+    # fetch checkins
     response = requests.get(
-        SERVICES['checkin_service'] + f'/api/v1/checkins/live-monitor/{ngo_id}/',  # ← add ngo_id
+        SERVICES['checkin_service'] + f'/api/v1/checkins/live-monitor/{ngo_id}/',
         headers=auth_headers(request)
     )
     data = response.json() if response.status_code == 200 else {}
+    checkins = data.get('checkins', [])
+    checked_in_count = data.get('checked_in_count', 0)
+
+    # ← enrich checkins with user details
+    enriched_checkins = []
+    for checkin in checkins:
+        user_resp = requests.get(
+            SERVICES['user_service'] + f'/api/v1/users/{checkin["employee_id"]}/',
+            headers=auth_headers(request)
+        )
+        if user_resp.status_code == 200:
+            user = user_resp.json()
+            checkin['employee_name'] = (
+                f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+                or user.get('username', f"Employee #{checkin['employee_id']}")
+            )
+            checkin['username'] = user.get('username', '')
+        else:
+            checkin['employee_name'] = f"Employee #{checkin['employee_id']}"
+            checkin['username'] = ''
+        enriched_checkins.append(checkin)
+
+    # fetch total registered
+    reg_resp = requests.get(
+        SERVICES['registration_service'] + f'/api/v1/registrations/participants/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    reg_data = reg_resp.json() if reg_resp.status_code == 200 else {}
+    total_registered = reg_data.get('count', 0)
+
+    attendance_pct = round(
+        checked_in_count / total_registered * 100
+    ) if total_registered > 0 else 0
+
+    # fetch ngo name
+    ngo_resp = requests.get(
+        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    ngo = ngo_resp.json().get('data', {}) if ngo_resp.status_code == 200 else {}
+
     return render(request, 'checkin/list.html', {
-        'checkins': data.get('checkins', []),
-        'checked_in_count': data.get('checked_in_count', 0),
-        'ngo_id': ngo_id,
+        'checkins':         enriched_checkins,   # ← enriched
+        'checked_in_count': checked_in_count,
+        'total_registered': total_registered,
+        'attendance_pct':   attendance_pct,
+        'ngo':              ngo,
+        'ngo_id':           ngo_id,
     })
 
 def generate_qr(request, ngo_id):
     if not is_logged_in(request) or not is_admin(request):
         return redirect('login')
 
+    # fetch QR from checkin service
     response = requests.get(
         SERVICES['checkin_service'] + f'/api/v1/checkins/generate-qr/{ngo_id}/',
         headers=auth_headers(request)
     )
     qr_data = response.json() if response.status_code == 200 else {}
+
+    # ← fetch NGO details for template
+    ngo_resp = requests.get(
+        SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    ngo = ngo_resp.json().get('data', {}) if ngo_resp.status_code == 200 else {}
+
     return render(request, 'checkin/qr.html', {
         'qr_code': qr_data.get('qr_code_base64'),
-        'ngo_id':  ngo_id
+        'ngo_id':  ngo_id,
+        'ngo':     ngo,           # ← pass ngo object
     })
-
 
 def scan_view(request):
     if not is_logged_in(request):
