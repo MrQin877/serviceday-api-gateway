@@ -59,7 +59,7 @@
 <div class="max-w-5xl mx-auto px-5 py-10 fade-in">
 
   <!-- Back button -->
-  <a href="{% url 'ngo:ngo-list' %}"
+  <a href="{% url 'employee_dashboard' %}"
      class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-800
             font-medium mb-7 transition group">
     <span class="group-hover:-translate-x-1 transition-transform duration-200">←</span>
@@ -138,8 +138,8 @@
               <span class="text-xs font-bold uppercase tracking-wide w-24 flex-shrink-0
                            {% if ngo.is_closed %}text-red-400{% else %}text-gray-400{% endif %}">Cut-Off</span>
               <span class="text-sm font-bold {% if ngo.is_closed %}text-red-500{% else %}text-gray-800{% endif %}">
-                {{ ngo.cutoff_datetime|date:"d M Y, H:i" }}
-                {% if ngo.is_closed %}<span class="text-xs font-semibold text-red-400 ml-1">— Passed</span>{% endif %}
+                  {{ ngo.cutoff_date }} {{ ngo.cutoff_time }}
+                  {% if ngo.is_closed %}<span class="text-xs font-semibold text-red-400 ml-1">— Passed</span>{% endif %}
               </span>
             </div>
 
@@ -242,7 +242,7 @@
               ✅ You are registered for this activity
             </div>
             {% if not ngo.is_closed %}
-            <form method="POST" action="{% url 'registration:cancel' %}">
+            <form method="POST" action="{% url 'cancel_registration' %}">
               {% csrf_token %}
               <button type="submit"
                 class="w-full text-sm font-black text-red-500 bg-red-50 border border-red-200
@@ -260,7 +260,7 @@
               <p class="text-sm font-black text-gray-700 truncate">{{ registration.ngo.name }}</p>
             </div>
             {% if not ngo.is_full and not ngo.is_closed %}
-            <form method="POST" action="{% url 'registration:switch' ngo.id %}">
+            <form method="POST" action="{% url 'switch_registration' ngo.id %}">
               {% csrf_token %}
               <button type="submit"
                 class="w-full text-sm font-black bg-gray-900 text-[#FFF4A3]
@@ -272,7 +272,7 @@
 
           {% else %}
             {% if not ngo.is_full and not ngo.is_closed %}
-            <form method="POST" action="{% url 'registration:register' ngo.id %}">
+            <form method="POST" action="{% url 'register_activity' ngo.id %}">
               {% csrf_token %}
               <button type="submit"
                 class="w-full text-sm font-black bg-gray-900 text-[#FFF4A3]
@@ -294,7 +294,7 @@
           {% endif %}
 
           <p class="text-xs text-center text-gray-400 leading-relaxed">
-            Closes <strong class="text-gray-600">{{ ngo.cutoff_datetime|date:"d M Y, H:i" }}</strong>
+            Closes <strong class="text-gray-600">{{ ngo.cutoff_date }} {{ ngo.cutoff_time }}</strong>
           </p>
 
         </div>

@@ -61,7 +61,7 @@
         class="text-xs font-bold px-4 py-2 rounded-xl border transition bg-gray-900 text-[#FFF4A3] shadow-lg hover:scale-[1.02]">
         📱 Show QR
       </a>
-      <a href="{% url 'live_monitor' ngo.id %}"
+      <a href="{% url 'checkin' %}"
         class="text-xs font-bold px-4 py-2 rounded-xl border transition bg-white text-gray-700 border-gray-200 shadow-sm hover:bg-gray-50">
         📊 Live
       </a>
@@ -95,16 +95,16 @@
         <div class="grid grid-cols-3 gap-3 mb-3">
           <div class="bg-gradient-to-br from-[#FFFDE7] to-[#FFF9C4] rounded-xl p-4">
             <p class="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">📅 Service Date</p>
-            <p class="text-sm font-bold text-gray-800">{{ ngo.service_date|date:"d M Y" }}</p>
+            <p class="text-sm font-bold text-gray-800">{{ ngo.service_date }}</p>
           </div>
           <div class="bg-gradient-to-br from-[#FFFDE7] to-[#FFF9C4] rounded-xl p-4">
             <p class="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">🕐 Time</p>
-            <p class="text-sm font-bold text-gray-800">{{ ngo.start_time|time:"g:i A" }} – {{ ngo.end_time|time:"g:i A" }}</p>
+            <p class="text-sm font-bold text-gray-800">{{ ngo.start_time }} – {{ ngo.end_time }}</p>
           </div>
           <div class="bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] rounded-xl p-4">
             <p class="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">⏰ Cut-Off</p>
-            <p class="text-sm font-bold text-gray-800">{{ ngo.cutoff_datetime|date:"d M Y" }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">{{ ngo.cutoff_datetime|time:"g:i A" }}</p>
+            <p class="text-sm font-bold text-gray-800">{{ ngo.cutoff_date }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ ngo.cutoff_time }}</p>
           </div>
         </div>
 

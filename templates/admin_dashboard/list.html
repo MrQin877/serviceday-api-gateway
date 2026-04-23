@@ -210,7 +210,7 @@
             <span class="st-chip" data-color-index="{{ forloop.counter0 }}" data-st-id="{{ st.id }}">
               <span class="st-dot"></span>
               <span>{{ st.name }}</span>
-              <form method="post" action="{% url 'admin_delete_service_type' st.pk %}"
+              <form method="post" action="{% url 'admin_delete_service_type' st.id %}"
                     class="delete-st-form" style="margin:0;padding:0;display:inline;">
                 {% csrf_token %}
                 <button type="button" class="del-btn st-del-btn"
@@ -259,7 +259,7 @@
             <span class="org-chip" data-org-id="{{ org.id }}">
               <span class="org-dot"></span>
               <span>{{ org.company_name }}</span>
-              <form method="post" action="{% url 'admin_delete_organizer' org.pk %}"
+              <form method="post" action="{% url 'admin_delete_organizer' org.id %}"
                     class="delete-org-form" style="margin:0;padding:0;display:inline;">
                 {% csrf_token %}
                 <button type="button" class="del-btn org-del-btn"
@@ -349,7 +349,9 @@
           </td>
 
           <td class="px-6 py-4">
-            <span class="st-type-badge text-xs font-bold px-2.5 py-1 rounded-full" data-st-id="{{ ngo.serviceType.id }}">
+            <span class="st-type-badge text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap overflow-hidden text-ellipsis block max-w-[120px]" 
+                  data-st-id="{{ ngo.serviceType.id }}"
+                  title="{{ ngo.serviceType.name }}">
               {{ ngo.serviceType.name }}
             </span>
           </td>
@@ -357,7 +359,9 @@
           <!-- Organizer column -->
           <td class="px-6 py-4">
             {% if ngo.organizer %}
-              <p class="text-xs font-semibold text-blue-600 truncate" title="{{ ngo.organizer.company_name }}">🏢 {{ ngo.organizer.company_name }}</p>
+              <p class="text-xs font-semibold text-blue-600 truncate max-w-[120px]" title="{{ ngo.organizer.company_name }}">
+                🏢 {{ ngo.organizer.company_name }}
+              </p>
             {% else %}
               <p class="text-xs text-gray-300 italic">None</p>
             {% endif %}
@@ -413,12 +417,12 @@
                 data-service-type="{{ ngo.serviceType.id }}"
                 data-organizer="{{ ngo.organizer.id|default:'' }}"
                 data-location="{{ ngo.location|escapejs }}"
-                data-service-date="{{ ngo.service_date|date:'Y-m-d' }}"
-                data-start-time="{{ ngo.start_time|time:'H:i' }}"
-                data-end-time="{{ ngo.end_time|time:'H:i' }}"
+                data-service-date="{{ ngo.service_date }}"
+                data-start-time="{{ ngo.start_time_short }}"
+                data-end-time="{{ ngo.end_time_short }}"
                 data-max-slots="{{ ngo.max_slots }}"
-                data-cutoff-date="{{ ngo.cutoff_datetime|date:'Y-m-d' }}"
-                data-cutoff-time="{{ ngo.cutoff_datetime|time:'H:i' }}"
+                data-cutoff-date="{{ ngo.cutoff_date }}"
+                data-cutoff-time="{{ ngo.cutoff_time }}"
                 data-is-active="{{ ngo.is_active|yesno:'1,0' }}">
                 ✏️ Edit
               </button>

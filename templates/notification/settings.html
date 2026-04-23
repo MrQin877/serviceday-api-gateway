@@ -66,7 +66,7 @@
             <form method="post" action="{% url 'notification_settings' %}" style="display:inline;">
               {% csrf_token %}
               <input type="hidden" name="action" value="toggle">
-              <input type="hidden" name="config_id" value="{{ config.id }}">
+              <input type="hidden" name="config_id" value="{{ config.interval_days }}">
               <button type="submit"
                 class="text-xs font-semibold px-3 py-1.5 rounded-full border transition
                 {% if config.is_active %}
@@ -84,7 +84,7 @@
                   onsubmit="return confirm('Delete the {{ config.interval_days }}-day reminder?');">
               {% csrf_token %}
               <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="config_id" value="{{ config.id }}">
+              <input type="hidden" name="config_id" value="{{ config.interval_days }}">
               <button type="submit"
                 class="text-xs font-semibold text-red-400 hover:text-red-600 transition px-2">
                 🗑

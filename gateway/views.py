@@ -21,6 +21,9 @@ def is_logged_in(request):
 def is_admin(request):
     return request.session.get('role') == 'admin'
 
+def is_employee(request):
+    return request.session.get('role') == 'employee'
+
 
 # ── Home ──────────────────────────────────────────────────────
 
@@ -71,12 +74,17 @@ def login_view(request):
 def logout_view(request):
     refresh = request.session.get('refresh_token')
     if refresh:
-        requests.post(
-            SERVICES['user_service'] + '/api/v1/users/logout/',
-            json={'refresh': refresh},
-            headers=auth_headers(request)
-        )
-    request.session.flush()
+        try:
+            requests.post(
+                SERVICES['user_service'] + '/api/v1/users/logout/',
+                json={'refresh': refresh},
+                headers=auth_headers(request),
+                timeout=3,
+            )
+        except Exception:
+            pass   # logout API failure should never block the user from logging out
+    
+    request.session.flush()   # always clear session regardless
     return redirect('login')
 
 def verify_email_view(request, token):
@@ -176,26 +184,114 @@ def reset_password_view(request, token):
 def employee_dashboard(request):
     if not is_logged_in(request):
         return redirect('login')
+    if not is_employee(request):
+        return redirect('home')
 
-    response = requests.get(
+    # fetch NGO activities
+    ngo_resp = requests.get(
         SERVICES['ngo_service'] + '/api/v1/activities/',
         headers=auth_headers(request)
     )
-    ngos = response.json().get('results', []) if response.status_code == 200 else []
-    return render(request, 'employee_dashboard/list.html', {'ngos': ngos})
+    ngo_raw = ngo_resp.json() if ngo_resp.status_code == 200 else {}
+    ngos    = ngo_raw.get('results', []) if isinstance(ngo_raw, dict) else []
+
+    # fetch service types for filter panel
+    st_resp = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/employee/service-types/',  # ← new URL
+        headers=auth_headers(request)
+    )
+    st_raw        = st_resp.json() if st_resp.status_code == 200 else []
+    service_types = (
+        st_raw.get('data') or st_raw.get('results') or []
+        if isinstance(st_raw, dict) else st_raw
+    )
+
+    # fetch organizers for filter panel
+    org_resp = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/employee/organizers/', 
+        headers=auth_headers(request)
+    )
+    org_raw    = org_resp.json() if org_resp.status_code == 200 else []
+    organizers = (
+        org_raw.get('data') or org_raw.get('results') or []
+        if isinstance(org_raw, dict) else org_raw
+    )
+
+    # fetch employee's current registration
+    try:
+        reg_resp = requests.get(
+            SERVICES['registration_service'] + '/api/v1/registrations/my/',
+            headers=auth_headers(request),
+            timeout=5,
+        )
+        registration = reg_resp.json() if reg_resp.status_code == 200 else None
+    except Exception:
+        registration = None
+
+    # ── add computed fields ───────────────────────────── ← ADD THIS BLOCK HERE
+    for ngo in ngos:
+        taken     = ngo.get('slots_taken', 0)
+        max_slots = ngo.get('max_slots', 1)
+        ngo['fill_pct']     = round(taken / max_slots * 100) if max_slots else 0
+        ngo['status_label'] = {
+            'open':        'open',
+            'almost_full': 'almost',
+            'full':        'full',
+            'closed':      'closed',
+            'inactive':    'inactive',
+        }.get(ngo.get('status', ''), 'open')
+
+    # ── render ────────────────────────────────────────── ← THEN RENDER
+    return render(request, 'employee_dashboard/list.html', {
+        'ngos':          ngos,
+        'service_types': service_types,
+        'organizers':    organizers,
+        'registration':  registration,
+    })
 
 
 def employee_ngo_detail(request, ngo_id):
     if not is_logged_in(request):
         return redirect('login')
+    if not is_employee(request):
+        return redirect('home')
 
-    response = requests.get(
+    ngo_resp = requests.get(
         SERVICES['ngo_service'] + f'/api/v1/activities/{ngo_id}/',
         headers=auth_headers(request)
     )
-    ngo = response.json() if response.status_code == 200 else {}
-    return render(request, 'employee_dashboard/detail.html', {'ngo': ngo})
+    ngo = ngo_resp.json() if ngo_resp.status_code == 200 else {}
 
+    # ── split cutoff_datetime ──────────────────────────
+    cutoff = ngo.get('cutoff_datetime', '')
+    if cutoff:
+        cutoff_clean       = cutoff[:19]
+        ngo['cutoff_date'] = cutoff_clean[:10]    # "2026-05-08"
+        ngo['cutoff_time'] = cutoff_clean[11:16]  # "23:59"
+    else:
+        ngo['cutoff_date'] = ''
+        ngo['cutoff_time'] = ''
+
+    # ── fix time format ────────────────────────────────
+    ngo['start_time'] = ngo.get('start_time', '')[:5]
+    ngo['end_time']   = ngo.get('end_time',   '')[:5]
+
+    # ── fetch registration ─────────────────────────────
+    try:
+        reg_resp = requests.get(
+            SERVICES['registration_service'] + '/api/v1/registrations/my/',
+            headers=auth_headers(request),
+            timeout=5,
+        )
+        registration = reg_resp.json() if reg_resp.status_code == 200 else None
+    except Exception:
+        registration = None
+
+    return render(request, 'employee_dashboard/detail.html', {
+        'ngo':          ngo,
+        'registration': registration,
+        'service_types': [],
+    })
 
 # ── Admin Dashboard ───────────────────────────────────────────
 
@@ -210,7 +306,8 @@ def admin_dashboard(request):
         SERVICES['ngo_service'] + '/api/v1/ngos/dashboard/',
         headers=auth_headers(request)
     )
-    stats = stats_resp.json().get('data', {}) if stats_resp.status_code == 200 else {}
+    stats_raw = stats_resp.json() if stats_resp.status_code == 200 else {}
+    stats     = stats_raw.get('data', stats_raw) if isinstance(stats_raw, dict) else {}
 
     # fetch NGOs with optional filters
     params = {}
@@ -222,28 +319,62 @@ def admin_dashboard(request):
         headers=auth_headers(request),
         params=params
     )
-    ngos_data = ngos_resp.json().get('data', {}) if ngos_resp.status_code == 200 else {}
-    ngos      = ngos_data.get('results', [])
+    ngos_raw = ngos_resp.json() if ngos_resp.status_code == 200 else {}
+    ngos = (
+        ngos_raw.get('data', {}).get('results', [])   # {"success": True, "data": {"results": [...]}}
+        or ngos_raw.get('results', [])                # {"results": [...]}
+        or []
+    ) if isinstance(ngos_raw, dict) else []
 
-    # fetch service types and organizers
-    st_resp  = requests.get(SERVICES['ngo_service'] + '/api/v1/service-types/', headers=auth_headers(request))
-    org_resp = requests.get(SERVICES['ngo_service'] + '/api/v1/organizers/',    headers=auth_headers(request))
+    # fetch service types
+    st_resp = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/service-types/',
+        headers=auth_headers(request)
+    )
+    st_raw        = st_resp.json() if st_resp.status_code == 200 else []
+    service_types = (
+        st_raw.get('data') or st_raw.get('results') or []
+        if isinstance(st_raw, dict) else st_raw
+    )
 
-    service_types = st_resp.json().get('data', [])  if st_resp.status_code  == 200 else []
-    organizers    = org_resp.json().get('data', [])  if org_resp.status_code == 200 else []
-
-    # add computed fields to each ngo dict so template works
+    # fetch organizers
+    org_resp = requests.get(
+        SERVICES['ngo_service'] + '/api/v1/organizers/',
+        headers=auth_headers(request)
+    )
+    org_raw    = org_resp.json() if org_resp.status_code == 200 else []
+    organizers = (
+        org_raw.get('data') or org_raw.get('results') or []
+        if isinstance(org_raw, dict) else org_raw
+    )
     for ngo in ngos:
         taken     = ngo.get('slots_taken', 0)
         max_slots = ngo.get('max_slots', 1)
         ngo['fill_pct']     = round(taken / max_slots * 100) if max_slots else 0
         ngo['status_label'] = {
-            'open':       'Open',
-            'almost_full':'Almost Full',
-            'full':       'Full',
-            'closed':     'Closed',
-            'inactive':   'Inactive',
+            'open':        'Open',
+            'almost_full': 'Almost Full',
+            'full':        'Full',
+            'closed':      'Closed',
+            'inactive':    'Inactive',
         }.get(ngo.get('status', ''), 'Unknown')
+
+        # ── split cutoff_datetime into date and time for edit modal ──
+        cutoff = ngo.get('cutoff_datetime', '')
+        if cutoff:
+            # handles both "2026-05-08T23:59:00+08:00" and "2026-05-08T23:59:00"
+            cutoff_clean = cutoff[:19]  # take "2026-05-08T23:59:00"
+            ngo['cutoff_date'] = cutoff_clean[:10]   # "2026-05-08"
+            ngo['cutoff_time'] = cutoff_clean[11:16] # "23:59"
+        else:
+            ngo['cutoff_date'] = ''
+            ngo['cutoff_time'] = ''
+
+        # ── fix time format (remove seconds if present) ──
+        start = ngo.get('start_time', '')
+        end   = ngo.get('end_time', '')
+        ngo['start_time_short'] = start[:5] if start else ''  # "08:00"
+        ngo['end_time_short']   = end[:5]   if end   else ''  # "12:00"
 
     return render(request, 'admin_dashboard/list.html', {
         'stats':         stats,
@@ -266,16 +397,42 @@ def admin_ngo_detail(request, ngo_id):
     if ngo_resp.status_code != 200:
         return redirect('admin_dashboard')
 
-    ngo  = ngo_resp.json().get('data', {})
+    ngo_raw = ngo_resp.json()
+    ngo     = ngo_raw.get('data', ngo_raw)
+
+    # ── split cutoff_datetime ──────────────────────────
+    cutoff = ngo.get('cutoff_datetime', '')
+    if cutoff:
+        cutoff_clean       = cutoff[:19]
+        ngo['cutoff_date'] = cutoff_clean[:10]
+        ngo['cutoff_time'] = cutoff_clean[11:16]
+    else:
+        ngo['cutoff_date'] = ''
+        ngo['cutoff_time'] = ''
+
+    # ── fix time format ────────────────────────────────
+    ngo['start_time'] = ngo.get('start_time', '')[:5]
+    ngo['end_time']   = ngo.get('end_time',   '')[:5]
+
+    # ── slot fill percentage ───────────────────────────
     taken     = ngo.get('slots_taken', 0)
     max_slots = ngo.get('max_slots', 1)
     ngo['fill_pct'] = round(taken / max_slots * 100) if max_slots else 0
 
+    # ── status label ───────────────────────────────────
+    status_label = {
+        'open':        'Open',
+        'almost_full': 'Almost Full',
+        'full':        'Full',
+        'closed':      'Closed',
+        'inactive':    'Inactive',
+    }.get(ngo.get('status', ''), 'Unknown')
+
     return render(request, 'admin_dashboard/detail.html', {
-        'ngo':          ngo,
-        'status_label': ngo.get('status_label', ''),
-        'fill_pct':     ngo['fill_pct'],
-        'registrations': [],  # wire registration-service later
+        'ngo':           ngo,
+        'status_label':  status_label,
+        'fill_pct':      ngo['fill_pct'],
+        'registrations': [],
     })
 
 
@@ -345,12 +502,16 @@ def admin_delete_service_type(request, pk):
 def admin_create_organizer(request):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.post(
+
+    description = request.POST.get('description', '').strip()
+
+    payload = {
+        'company_name': request.POST.get('company_name', '').strip(),
+        'description':  description if description else 'No description provided.',
+    }
+    response = requests.post(
         SERVICES['ngo_service'] + '/api/v1/organizers/',
-        json={
-            'company_name': request.POST.get('company_name', ''),
-            'description':  request.POST.get('description', ''),
-        },
+        json=payload,
         headers=auth_headers(request)
     )
     return redirect('admin_dashboard')
@@ -474,6 +635,9 @@ def notification_settings_view(request):
 def registration_view(request):
     if not is_logged_in(request):
         return redirect('login')
+    
+    if not is_employee(request):     
+        return redirect('home')
 
     response = requests.get(
         SERVICES['registration_service'] + '/api/v1/registrations/my/',
@@ -486,6 +650,8 @@ def registration_view(request):
 def register_activity(request, ngo_id):
     if not is_logged_in(request):
         return redirect('login')
+    if not is_employee(request):     
+        return redirect('home')
 
     requests.post(
         SERVICES['registration_service'] + f'/api/v1/registrations/register/{ngo_id}/',
@@ -497,6 +663,8 @@ def register_activity(request, ngo_id):
 def cancel_registration(request):
     if not is_logged_in(request):
         return redirect('login')
+    if not is_employee(request):     
+        return redirect('home')
 
     requests.delete(
         SERVICES['registration_service'] + '/api/v1/registrations/cancel/',
@@ -508,6 +676,8 @@ def cancel_registration(request):
 def switch_registration(request, ngo_id):
     if not is_logged_in(request):
         return redirect('login')
+    if not is_employee(request):     
+        return redirect('home')
 
     requests.put(
         SERVICES['registration_service'] + f'/api/v1/registrations/switch/{ngo_id}/',
