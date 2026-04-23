@@ -193,31 +193,31 @@ def employee_dashboard(request):
         headers=auth_headers(request)
     )
     ngo_raw = ngo_resp.json() if ngo_resp.status_code == 200 else {}
-    ngos    = ngo_raw.get('results', []) if isinstance(ngo_raw, dict) else []
+    ngos = ngo_raw.get('results', []) if isinstance(ngo_raw, dict) else []
 
-    # fetch service types for filter panel
+    # fetch service types
     st_resp = requests.get(
-        SERVICES['ngo_service'] + '/api/v1/employee/service-types/',  # ← new URL
+        SERVICES['ngo_service'] + '/api/v1/employee/service-types/',
         headers=auth_headers(request)
     )
-    st_raw        = st_resp.json() if st_resp.status_code == 200 else []
+    st_raw = st_resp.json() if st_resp.status_code == 200 else []
     service_types = (
         st_raw.get('data') or st_raw.get('results') or []
         if isinstance(st_raw, dict) else st_raw
     )
 
-    # fetch organizers for filter panel
+    # fetch organizers
     org_resp = requests.get(
-        SERVICES['ngo_service'] + '/api/v1/employee/organizers/', 
+        SERVICES['ngo_service'] + '/api/v1/employee/organizers/',
         headers=auth_headers(request)
     )
-    org_raw    = org_resp.json() if org_resp.status_code == 200 else []
+    org_raw = org_resp.json() if org_resp.status_code == 200 else []
     organizers = (
         org_raw.get('data') or org_raw.get('results') or []
         if isinstance(org_raw, dict) else org_raw
     )
 
-    # fetch employee's current registration
+    # fetch registration
     try:
         reg_resp = requests.get(
             SERVICES['registration_service'] + '/api/v1/registrations/my/',
@@ -225,10 +225,23 @@ def employee_dashboard(request):
             timeout=5,
         )
         registration = reg_resp.json() if reg_resp.status_code == 200 else None
+
+        # normalize
+        if registration and registration.get('registration') is None:
+            registration = None
+
+        if registration and registration.get('ngo_id'):
+            ngo_detail_resp = requests.get(
+                SERVICES['ngo_service'] + f'/api/v1/activities/{registration["ngo_id"]}/',
+                headers=auth_headers(request)
+            )
+            if ngo_detail_resp.status_code == 200:
+                registration['ngo'] = ngo_detail_resp.json()  # ← adds ngo object
+
     except Exception:
         registration = None
 
-    # ── add computed fields ───────────────────────────── ← ADD THIS BLOCK HERE
+    # add computed fields
     for ngo in ngos:
         taken     = ngo.get('slots_taken', 0)
         max_slots = ngo.get('max_slots', 1)
@@ -241,7 +254,17 @@ def employee_dashboard(request):
             'inactive':    'inactive',
         }.get(ngo.get('status', ''), 'open')
 
+    # ← KEY FIX: mark registered NGO
+    if registration and registration.get('ngo_id'):
+        registered_ngo_id = registration.get('ngo_id')
+        for ngo in ngos:
+            if ngo.get('id') == registered_ngo_id:
+                ngo['status_label'] = 'registered'   # ← this makes Cancel show ✅
+                break
+
+
     # ── render ────────────────────────────────────────── ← THEN RENDER
+
     return render(request, 'employee_dashboard/list.html', {
         'ngos':          ngos,
         'service_types': service_types,
