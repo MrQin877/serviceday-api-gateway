@@ -30,8 +30,8 @@ urlpatterns = [
     path('registration/register/<int:ngo_id>/',     views.register_activity,            name='register_activity'),
     path('registration/cancel/',                    views.cancel_registration,          name='cancel_registration'),
     path('registration/switch/<int:ngo_id>/',       views.switch_registration,          name='switch_registration'),
-    path('admin/participants/<int:ngo_id>/',         views.participants_view,            name='participants'),
-    path('checkin/',                                views.checkin_view,                 name='checkin'),
+    path('admin/participants/<int:ngo_id>/',        views.participants_view,            name='participants'),
+    path('checkin/<int:ngo_id>/',                   views.checkin_view,                 name='checkin'),
     path('checkin/qr/<int:ngo_id>/',                views.generate_qr,                  name='generate_qr'),
     path('checkin/scan/',                           views.scan_view,                    name='scan_checkin'),
 ]

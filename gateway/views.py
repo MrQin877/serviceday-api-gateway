@@ -266,16 +266,43 @@ def admin_ngo_detail(request, ngo_id):
     if ngo_resp.status_code != 200:
         return redirect('admin_dashboard')
 
-    ngo  = ngo_resp.json().get('data', {})
+    ngo = ngo_resp.json().get('data', {})
     taken     = ngo.get('slots_taken', 0)
     max_slots = ngo.get('max_slots', 1)
     ngo['fill_pct'] = round(taken / max_slots * 100) if max_slots else 0
+
+    # ← wire registration service
+    reg_resp = requests.get(
+        SERVICES['registration_service'] + f'/api/v1/registrations/participants/{ngo_id}/',
+        headers=auth_headers(request)
+    )
+    reg_data = reg_resp.json() if reg_resp.status_code == 200 else {}
+    participants = reg_data.get('results', {}).get('participants', [])
+
+    # enrich with user details
+    registrations = []
+    for p in participants:
+        user_resp = requests.get(
+            SERVICES['user_service'] + f'/api/v1/users/{p["employee_id"]}/',
+            headers=auth_headers(request)
+        )
+        employee = user_resp.json() if user_resp.status_code == 200 else {
+            'first_name': 'Unknown',
+            'last_name': '',
+            'username': f'user_{p["employee_id"]}',
+            'email': '',
+        }
+        registrations.append({
+            'employee': employee,
+            'registered_at': p['registered_at'],
+            'completed': p['completed'],
+        })
 
     return render(request, 'admin_dashboard/detail.html', {
         'ngo':          ngo,
         'status_label': ngo.get('status_label', ''),
         'fill_pct':     ngo['fill_pct'],
-        'registrations': [],  # wire registration-service later
+        'registrations': registrations,    # ← now populated ✅
     })
 
 
@@ -524,27 +551,32 @@ def participants_view(request, ngo_id):
         headers=auth_headers(request)
     )
     data = response.json() if response.status_code == 200 else {}
+    results = data.get('results', {})      # ← get results block first
+
     return render(request, 'registration/participants.html', {
-        'participants': data.get('results', {}).get('participants', []),
+        'participants': results.get('participants', []),   # ← fixed ✅
         'ngo_id': ngo_id,
-        'count': data.get('count', 0),
-        'source': data.get('results', {}).get('source', ''),
+        'count': data.get('count', 0),                    # ← count is at top level ✅
+        'source': results.get('source', ''),              # ← fixed ✅
     })
 
 
 # ── Checkin ───────────────────────────────────────────────────
 
-def checkin_view(request):
+def checkin_view(request, ngo_id):           # ← add ngo_id param
     if not is_logged_in(request) or not is_admin(request):
         return redirect('login')
 
     response = requests.get(
-        SERVICES['checkin_service'] + '/api/v1/checkins/live-monitor/',
+        SERVICES['checkin_service'] + f'/api/v1/checkins/live-monitor/{ngo_id}/',  # ← add ngo_id
         headers=auth_headers(request)
     )
-    checkins = response.json().get('checkins', []) if response.status_code == 200 else []
-    return render(request, 'checkin/list.html', {'checkins': checkins})
-
+    data = response.json() if response.status_code == 200 else {}
+    return render(request, 'checkin/list.html', {
+        'checkins': data.get('checkins', []),
+        'checked_in_count': data.get('checked_in_count', 0),
+        'ngo_id': ngo_id,
+    })
 
 def generate_qr(request, ngo_id):
     if not is_logged_in(request) or not is_admin(request):
