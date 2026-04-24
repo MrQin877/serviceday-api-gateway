@@ -526,67 +526,90 @@ def admin_create_ngo(request):
         json=request.POST.dict(),
         headers=auth_headers(request)
     )
+    if response.status_code == 201:
+        messages.success(request, 'NGO created successfully.')
+    else:
+        messages.error(request, 'Failed to create NGO.')
     return redirect('admin_dashboard')
 
 
 def admin_update_ngo(request, ngo_id):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.patch(
+    response = requests.patch(
         SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
         json=request.POST.dict(),
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'NGO updated successfully.')
+    else:
+        messages.error(request, 'Failed to update NGO.')
     return redirect('admin_dashboard')
 
 
 def admin_delete_ngo(request, ngo_id):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.delete(
+    response = requests.delete(
         SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'NGO deleted successfully.')
+    else:
+        messages.error(request, 'Failed to delete NGO.')
     return redirect('admin_dashboard')
 
 
 def admin_toggle_active(request, ngo_id):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.patch(
+    response = requests.patch(
         SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/toggle-active/',
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'NGO status toggled successfully.')
+    else:
+        messages.error(request, 'Failed to toggle NGO status.')
     return redirect('admin_dashboard')
 
 
 def admin_create_service_type(request):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.post(
+    response = requests.post(
         SERVICES['ngo_service'] + '/api/v1/service-types/',
         json={'name': request.POST.get('name', '')},
         headers=auth_headers(request)
     )
+    if response.status_code == 201:
+        messages.success(request, 'Service type created successfully.')
+    else:
+        error = response.json().get('errors', {})
+        messages.error(request, f'Failed to create service type. {error}')
     return redirect('admin_dashboard')
 
 
 def admin_delete_service_type(request, pk):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.delete(
+    response = requests.delete(
         SERVICES['ngo_service'] + f'/api/v1/service-types/{pk}/',
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'Service type deleted successfully.')
+    else:
+        messages.error(request, 'Failed to delete service type. It may be in use by existing NGOs.')
     return redirect('admin_dashboard')
 
 
 def admin_create_organizer(request):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-
     description = request.POST.get('description', '').strip()
-
     payload = {
         'company_name': request.POST.get('company_name', '').strip(),
         'description':  description if description else 'No description provided.',
@@ -596,16 +619,24 @@ def admin_create_organizer(request):
         json=payload,
         headers=auth_headers(request)
     )
+    if response.status_code == 201:
+        messages.success(request, 'Organizer created successfully.')
+    else:
+        messages.error(request, 'Failed to create organizer.')
     return redirect('admin_dashboard')
 
 
 def admin_delete_organizer(request, pk):
     if request.method != 'POST':
         return redirect('admin_dashboard')
-    requests.delete(
+    response = requests.delete(
         SERVICES['ngo_service'] + f'/api/v1/organizers/{pk}/',
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'Organizer deleted successfully.')
+    else:
+        messages.error(request, 'Failed to delete organizer.')
     return redirect('admin_dashboard')
 
 
@@ -732,39 +763,52 @@ def registration_view(request):
 def register_activity(request, ngo_id):
     if not is_logged_in(request):
         return redirect('login')
-    if not is_employee(request):     
+    if not is_employee(request):
         return redirect('home')
 
-    requests.post(
+    response = requests.post(
         SERVICES['registration_service'] + f'/api/v1/registrations/register/{ngo_id}/',
         headers=auth_headers(request)
     )
+    if response.status_code == 201:
+        messages.success(request, 'Successfully registered for the activity!')
+    else:
+        error = response.json().get('error', 'Registration failed. Please try again.')
+        messages.error(request, f'⚠️ {error}')
     return redirect('employee_dashboard')
 
 
 def cancel_registration(request):
     if not is_logged_in(request):
         return redirect('login')
-    if not is_employee(request):     
+    if not is_employee(request):
         return redirect('home')
 
-    requests.delete(
+    response = requests.delete(
         SERVICES['registration_service'] + '/api/v1/registrations/cancel/',
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'Registration cancelled successfully.')
+    else:
+        messages.error(request, 'Failed to cancel registration.')
     return redirect('employee_dashboard')
 
 
 def switch_registration(request, ngo_id):
     if not is_logged_in(request):
         return redirect('login')
-    if not is_employee(request):     
+    if not is_employee(request):
         return redirect('home')
 
-    requests.put(
+    response = requests.put(
         SERVICES['registration_service'] + f'/api/v1/registrations/switch/{ngo_id}/',
         headers=auth_headers(request)
     )
+    if response.status_code == 200:
+        messages.success(request, 'Successfully switched to the new activity!')
+    else:
+        messages.error(request, 'Failed to switch activity. Please try again.')
     return redirect('employee_dashboard')
 
 def participants_view(request, ngo_id):
@@ -779,10 +823,10 @@ def participants_view(request, ngo_id):
     results = data.get('results', {})      # ← get results block first
 
     return render(request, 'registration/participants.html', {
-        'participants': results.get('participants', []),   # ← fixed ✅
+        'participants': results.get('participants', []),   
         'ngo_id': ngo_id,
-        'count': data.get('count', 0),                    # ← count is at top level ✅
-        'source': results.get('source', ''),              # ← fixed ✅
+        'count': data.get('count', 0),                    
+        'source': results.get('source', ''),              
     })
 
 
