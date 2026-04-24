@@ -386,44 +386,46 @@ def admin_dashboard(request):
     stats_raw = stats_resp.json() if stats_resp.status_code == 200 else {}
     stats     = stats_raw.get('data', stats_raw) if isinstance(stats_raw, dict) else {}
 
-    # fetch NGOs with optional filters
-    params = {}
-    if request.GET.get('search'):   params['search']  = request.GET['search']
-    if request.GET.get('status'):   params['status']  = request.GET['status']
+    # pagination + filters
+    page       = request.GET.get('page', 1)
+    params     = {'page': page, 'page_size': 5}
+    if request.GET.get('search'): params['search'] = request.GET['search']
+    if request.GET.get('status'): params['status'] = request.GET['status']
 
     ngos_resp = requests.get(
         SERVICES['ngo_service'] + '/api/v1/ngos/',
         headers=auth_headers(request),
         params=params
     )
-    ngos_raw = ngos_resp.json() if ngos_resp.status_code == 200 else {}
-    ngos = (
-        ngos_raw.get('data', {}).get('results', [])   # {"success": True, "data": {"results": [...]}}
-        or ngos_raw.get('results', [])                # {"results": [...]}
-        or []
-    ) if isinstance(ngos_raw, dict) else []
+    ngos_raw   = ngos_resp.json() if ngos_resp.status_code == 200 else {}
+    ngo_data   = ngos_raw.get('data', {}) if isinstance(ngos_raw, dict) else {}
+    ngos       = ngo_data.get('results', [])
+    total      = ngo_data.get('count', 0)
+    next_page  = ngo_data.get('next')
+    prev_page  = ngo_data.get('previous')
 
-    # fetch service types
+    # compute page numbers
+    page       = int(page)
+    page_size  = 5
+    total_pages = (total + page_size - 1) // page_size
+    page_range  = range(max(1, page - 2), min(total_pages + 1, page + 3))
+
+    # fetch service types and organizers
     st_resp = requests.get(
         SERVICES['ngo_service'] + '/api/v1/service-types/',
         headers=auth_headers(request)
     )
     st_raw        = st_resp.json() if st_resp.status_code == 200 else []
-    service_types = (
-        st_raw.get('data') or st_raw.get('results') or []
-        if isinstance(st_raw, dict) else st_raw
-    )
+    service_types = st_raw.get('data') or st_raw.get('results') or [] if isinstance(st_raw, dict) else st_raw
 
-    # fetch organizers
     org_resp = requests.get(
         SERVICES['ngo_service'] + '/api/v1/organizers/',
         headers=auth_headers(request)
     )
     org_raw    = org_resp.json() if org_resp.status_code == 200 else []
-    organizers = (
-        org_raw.get('data') or org_raw.get('results') or []
-        if isinstance(org_raw, dict) else org_raw
-    )
+    organizers = org_raw.get('data') or org_raw.get('results') or [] if isinstance(org_raw, dict) else org_raw
+
+    # computed fields
     for ngo in ngos:
         taken     = ngo.get('slots_taken', 0)
         max_slots = ngo.get('max_slots', 1)
@@ -436,28 +438,31 @@ def admin_dashboard(request):
             'inactive':    'Inactive',
         }.get(ngo.get('status', ''), 'Unknown')
 
-        # ── split cutoff_datetime into date and time for edit modal ──
         cutoff = ngo.get('cutoff_datetime', '')
         if cutoff:
-            # handles both "2026-05-08T23:59:00+08:00" and "2026-05-08T23:59:00"
-            cutoff_clean = cutoff[:19]  # take "2026-05-08T23:59:00"
-            ngo['cutoff_date'] = cutoff_clean[:10]   # "2026-05-08"
-            ngo['cutoff_time'] = cutoff_clean[11:16] # "23:59"
+            cutoff_clean       = cutoff[:19]
+            ngo['cutoff_date'] = cutoff_clean[:10]
+            ngo['cutoff_time'] = cutoff_clean[11:16]
         else:
             ngo['cutoff_date'] = ''
             ngo['cutoff_time'] = ''
 
-        # ── fix time format (remove seconds if present) ──
         start = ngo.get('start_time', '')
         end   = ngo.get('end_time', '')
-        ngo['start_time_short'] = start[:5] if start else ''  # "08:00"
-        ngo['end_time_short']   = end[:5]   if end   else ''  # "12:00"
+        ngo['start_time_short'] = start[:5] if start else ''
+        ngo['end_time_short']   = end[:5]   if end   else ''
 
     return render(request, 'admin_dashboard/list.html', {
         'stats':         stats,
         'ngos':          ngos,
         'service_types': service_types,
         'organizers':    organizers,
+        'total':         total,
+        'page':          page,
+        'total_pages':   total_pages,
+        'page_range':    page_range,
+        'has_next':      next_page is not None,
+        'has_prev':      prev_page is not None,
     })
 
 
@@ -707,6 +712,12 @@ def broadcast_view(request):
     )
     broadcast_history = hist_resp.json() if hist_resp.status_code == 200 else []
 
+    # ── split sent_at into date and time ──────────────── 
+    for b in broadcast_history:
+        sent_at = b.get('sent_at', '')
+        b['sent_date'] = sent_at[:10]   if sent_at else ''  # "2026-04-24"
+        b['sent_time'] = sent_at[11:16] if sent_at else ''  # "16:04"
+
     if request.method == 'POST':
         subject = request.POST.get('subject', '').strip()
         body    = request.POST.get('body', '').strip()
@@ -741,6 +752,18 @@ def broadcast_view(request):
         'broadcast_history': broadcast_history,
     })
 
+def broadcast_progress_view(request, broadcast_id):
+    if not is_logged_in(request):
+        return JsonResponse({'error': 'Not logged in'}, status=401)
+
+    from django.http import JsonResponse
+    response = requests.get(
+        SERVICES['notification_service'] + f'/api/v1/notifications/broadcasts/{broadcast_id}/progress/',
+        headers=auth_headers(request)
+    )
+    if response.status_code == 200:
+        return JsonResponse(response.json())
+    return JsonResponse({'error': 'Failed'}, status=response.status_code)
 
 def notification_log_view(request):
     if not is_logged_in(request):
@@ -749,7 +772,10 @@ def notification_log_view(request):
         return redirect('home')
 
     filter_type = request.GET.get('type', '')
-    params = {}
+    page        = int(request.GET.get('page', 1))
+    page_size   = 5
+
+    params = {'page': page, 'page_size': page_size}
     if filter_type:
         params['notification_type'] = filter_type
 
@@ -758,44 +784,53 @@ def notification_log_view(request):
         params=params,
         headers=auth_headers(request)
     )
-    logs = log_resp.json() if log_resp.status_code == 200 else []
+    data = log_resp.json() if log_resp.status_code == 200 else {}
+    logs  = data.get('results', []) if isinstance(data, dict) else []
+    total = data.get('count', 0)
 
-    # split sent_at into date and time
+    # split sent_at
     for log in logs:
         sent_at = log.get('sent_at', '')
         if sent_at:
             clean = sent_at[:19]
-            log['sent_date'] = clean[:10]    # "2026-04-24"
-            log['sent_time'] = clean[11:16]  # "16:04"
+            log['sent_date'] = clean[:10]
+            log['sent_time'] = clean[11:16]
         else:
             log['sent_date'] = ''
             log['sent_time'] = ''
 
+    # pagination info
+    total_pages = (total + page_size - 1) // page_size
+    page_range  = range(max(1, page - 2), min(total_pages + 1, page + 3))
+
     from datetime import datetime, timedelta
     seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-
-    total_sent  = len(logs)
+    total_sent  = total
     failed      = sum(1 for l in logs if not l.get('is_success'))
-    recent_sent = sum(1 for l in logs if l.get('sent_date', '') >= seven_days_ago)  # ← fix l not log
-
-    notification_types = [
-        ('confirmation', 'Confirmation'),
-        ('cancellation', 'Cancellation'),
-        ('reminder',     'Reminder'),
-        ('broadcast',    'Broadcast'),
-        ('switch',       'Switch'),
-        ('verification', 'Verification'),
-    ]
+    recent_sent = sum(1 for l in logs if l.get('sent_date', '') >= seven_days_ago)
 
     return render(request, 'notification/log.html', {
         'logs':               logs,
         'filter_type':        filter_type,
-        'notification_types': notification_types,
+        'notification_types': [
+            ('confirmation', 'Confirmation'),
+            ('cancellation', 'Cancellation'),
+            ('reminder',     'Reminder'),
+            ('broadcast',    'Broadcast'),
+            ('switch',       'Switch'),
+            ('verification', 'Verification'),
+        ],
         'stats': {
             'total_sent':  total_sent,
             'recent_sent': recent_sent,
             'failed':      failed,
-        }
+        },
+        'page':        page,
+        'total_pages': total_pages,
+        'page_range':  page_range,
+        'has_next':    page < total_pages,
+        'has_prev':    page > 1,
+        'total':       total,
     })
 
 

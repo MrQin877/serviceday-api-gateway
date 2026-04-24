@@ -46,14 +46,12 @@
       <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
         <h2 class="font-bold text-gray-800 text-sm mb-5">✍️ Compose Message</h2>
 
-        <form method="post" action="{% url 'broadcast' %}">
+        <form id="broadcast-form" method="post" action="{% url 'broadcast' %}">
           {% csrf_token %}
 
           <!-- Field 1: Target Audience -->
           <div class="mb-5">
-            <label class="block text-xs font-semibold text-gray-500 mb-2">
-              Target Audience *
-            </label>
+            <label class="block text-xs font-semibold text-gray-500 mb-2">Target Audience *</label>
             <div class="space-y-2">
               <label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-200
                             hover:border-green-300 hover:bg-green-50 cursor-pointer transition
@@ -84,18 +82,15 @@
           <!-- Field 2: Target Activities -->
           <div id="activity-picker" class="mb-5" style="display:none;">
             <label class="block text-xs font-semibold text-gray-500 mb-2">
-              Target Activities *
-              <span class="text-gray-400 font-normal">(select one or more)</span>
+              Target Activities * <span class="text-gray-400 font-normal">(select one or more)</span>
             </label>
 
-            <!-- Search box -->
             <input type="text" id="ngo-search"
                    placeholder="🔍 Search activities by name or location..."
                    oninput="filterNGOs(this.value)"
                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-2 text-sm
                           text-gray-700 outline-none focus:border-green-400 transition mb-2">
 
-            <!-- Activity list -->
             <div class="border-2 border-gray-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto"
                  id="ngo-list-container">
               {% for ngo in ngo_list %}
@@ -117,38 +112,29 @@
               <div class="px-4 py-8 text-center">
                 <div class="text-3xl mb-2">📭</div>
                 <p class="text-xs font-bold text-gray-500">No activities with registered employees</p>
-                <p class="text-xs text-gray-400 mt-1">Employees must register first before you can target them.</p>
+                <p class="text-xs text-gray-400 mt-1">Employees must register first.</p>
               </div>
               {% endfor %}
             </div>
 
-            <!-- No results message (shown by JS) -->
             <div id="no-search-results" class="hidden px-4 py-4 text-center text-xs text-gray-400 border-2 border-gray-200 rounded-xl mt-1">
               No activities match your search.
             </div>
 
-            <!-- Count + select controls -->
             <div class="flex items-center justify-between mt-2">
               <p id="ngo-count" class="text-xs text-gray-400">
                 {{ ngo_list|length }} activit{% if ngo_list|length == 1 %}y{% else %}ies{% endif %} with registrations
               </p>
               <div class="flex gap-3">
                 <button type="button" onclick="selectAllActivities()"
-                  class="text-xs text-green-600 hover:text-green-800 font-semibold transition">
-                  ✅ Select All
-                </button>
+                  class="text-xs text-green-600 hover:text-green-800 font-semibold transition">✅ Select All</button>
                 <span class="text-gray-300">|</span>
                 <button type="button" onclick="clearAllActivities()"
-                  class="text-xs text-red-400 hover:text-red-600 font-semibold transition">
-                  ✕ Clear All
-                </button>
+                  class="text-xs text-red-400 hover:text-red-600 font-semibold transition">✕ Clear All</button>
               </div>
             </div>
 
-            <!-- Selected count indicator -->
-            <p id="selected-count" class="text-xs text-green-600 font-semibold mt-1 hidden">
-              0 activities selected
-            </p>
+            <p id="selected-count" class="text-xs text-green-600 font-semibold mt-1 hidden">0 activities selected</p>
           </div>
 
           <!-- Subject -->
@@ -176,19 +162,36 @@
             </p>
           </div>
 
-          <button type="submit"
+          <button type="submit" id="send-btn"
             class="w-full bg-gray-900 text-yellow-300 font-bold text-sm py-3 rounded-xl
                   hover:bg-gray-700 transition">
             📨 Send Broadcast
           </button>
-
         </form>
+
+        <!-- Progress tracker -->
+        <div id="progress-tracker" class="hidden mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-bold text-blue-700">📨 Sending broadcast...</p>
+            <span id="progress-text" class="text-xs font-bold text-blue-600">0 sent</span>
+          </div>
+          <div class="h-2.5 bg-blue-100 rounded-full overflow-hidden mb-2">
+            <div id="progress-bar"
+                 class="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-700"
+                 style="width: 0%">
+            </div>
+          </div>
+          <p id="progress-status" class="text-xs text-blue-500">Queuing task...</p>
+        </div>
+
       </div>
     </div>
 
     <!-- Right: Broadcast history (2 columns) -->
     <div class="col-span-2">
-      <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+      <div id="broadcast-history"
+       data-latest-id="{{ broadcast_history.0.id|default:0 }}"
+        class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 class="font-bold text-gray-800 text-sm">📜 Broadcast History</h2>
           <span class="bg-blue-100 text-blue-600 text-xs font-bold px-2.5 py-0.5 rounded-full">
@@ -198,20 +201,21 @@
 
         <div class="divide-y divide-gray-50 max-h-[500px] overflow-y-auto">
           {% for broadcast in broadcast_history %}
-          <div class="px-5 py-3.5">
+          <div class="px-5 py-3.5 {% if forloop.first and track_broadcast %}bg-blue-50 border-l-2 border-blue-400{% endif %}">
             <p class="font-semibold text-gray-800 text-xs truncate" title="{{ broadcast.subject }}">
               {{ broadcast.subject }}
             </p>
             <div class="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span class="text-xs text-gray-400">{{ broadcast.sent_at|date:"d M Y, H:i" }}</span>
+              <span class="text-xs text-gray-400">{{ broadcast.sent_date }} {{ broadcast.sent_time }}</span>
               <span class="w-1 h-1 bg-gray-300 rounded-full inline-block"></span>
               <span class="text-xs font-semibold
-                {% if broadcast.target == 'all' %}text-blue-500
-                {% else %}text-purple-500{% endif %}">
+                {% if broadcast.target == 'all' %}text-blue-500{% else %}text-purple-500{% endif %}">
                 {% if broadcast.target == 'all' %}👥 All{% else %}🎯 Activity{% endif %}
               </span>
               <span class="w-1 h-1 bg-gray-300 rounded-full inline-block"></span>
-              <span class="text-xs text-green-600 font-semibold">{{ broadcast.recipients }} sent</span>
+              <span id="recipients-{{ broadcast.id }}" class="text-xs text-green-600 font-semibold">
+                {{ broadcast.recipients }} sent
+              </span>
             </div>
             {% if broadcast.body %}
             <p class="text-xs text-gray-400 mt-1 truncate" title="{{ broadcast.body }}">
@@ -233,84 +237,161 @@
 </div>
 
 <script>
-  // Auto-dismiss flash messages
+  // ── Auto-dismiss flash messages ──────────────────────
   var flash = document.getElementById('flash-messages');
   if (flash) {
     setTimeout(function() {
-      flash.style.opacity = '0';
       flash.style.transition = 'opacity 0.5s';
+      flash.style.opacity = '0';
       setTimeout(function() { flash.style.display = 'none'; }, 500);
     }, 3000);
   }
 
+  // ── Activity picker ───────────────────────────────────
   function toggleActivityPicker(value) {
     var picker = document.getElementById('activity-picker');
     picker.style.display = (value === 'activity') ? 'block' : 'none';
     if (value !== 'activity') {
-      document.querySelectorAll('input[name="ngo_ids"]').forEach(function(cb) {
-        cb.checked = false;
-      });
+      document.querySelectorAll('input[name="ngo_ids"]').forEach(function(cb) { cb.checked = false; });
       updateSelectedCount();
     }
   }
 
   function filterNGOs(query) {
-    const q       = query.toLowerCase().trim();
-    const items   = document.querySelectorAll('.ngo-item');
+    const q        = query.toLowerCase().trim();
+    const items    = document.querySelectorAll('.ngo-item');
     const noResult = document.getElementById('no-search-results');
-    let visible   = 0;
-
+    const container = document.getElementById('ngo-list-container');
+    let visible    = 0;
     items.forEach(function(item) {
-      const name     = item.dataset.name     || '';
-      const location = item.dataset.location || '';
-      const matches  = !q || name.includes(q) || location.includes(q);
+      const matches = !q || item.dataset.name.includes(q) || (item.dataset.location || '').includes(q);
       item.style.display = matches ? '' : 'none';
       if (matches) visible++;
     });
-
-    // show/hide no results message
-    const container = document.getElementById('ngo-list-container');
-    if (visible === 0 && items.length > 0) {
-      noResult.classList.remove('hidden');
-      container.style.display = 'none';
-    } else {
-      noResult.classList.add('hidden');
-      container.style.display = '';
-    }
-
+    noResult.classList.toggle('hidden', visible > 0 || items.length === 0);
+    container.style.display = (visible === 0 && items.length > 0) ? 'none' : '';
     document.getElementById('ngo-count').textContent =
       `${visible} activit${visible === 1 ? 'y' : 'ies'} with registrations`;
   }
 
   function selectAllActivities() {
-    document.querySelectorAll('.ngo-item:not([style*="display: none"]) input[name="ngo_ids"]').forEach(function(cb) {
-      cb.checked = true;
-    });
+    document.querySelectorAll('.ngo-item:not([style*="display: none"]) input[name="ngo_ids"]')
+      .forEach(function(cb) { cb.checked = true; });
     updateSelectedCount();
   }
 
   function clearAllActivities() {
-    document.querySelectorAll('input[name="ngo_ids"]').forEach(function(cb) {
-      cb.checked = false;
-    });
+    document.querySelectorAll('input[name="ngo_ids"]').forEach(function(cb) { cb.checked = false; });
     updateSelectedCount();
   }
 
   function updateSelectedCount() {
-    const count   = document.querySelectorAll('input[name="ngo_ids"]:checked').length;
-    const el      = document.getElementById('selected-count');
-    if (count > 0) {
-      el.textContent = `${count} activit${count === 1 ? 'y' : 'ies'} selected`;
-      el.classList.remove('hidden');
-    } else {
-      el.classList.add('hidden');
-    }
+    const count = document.querySelectorAll('input[name="ngo_ids"]:checked').length;
+    const el    = document.getElementById('selected-count');
+    el.textContent = `${count} activit${count === 1 ? 'y' : 'ies'} selected`;
+    el.classList.toggle('hidden', count === 0);
   }
 
-  // track checkbox changes
   document.querySelectorAll('input[name="ngo_ids"]').forEach(function(cb) {
     cb.addEventListener('change', updateSelectedCount);
   });
+
+  // ── Progress tracking ─────────────────────────────────
+  var pollTimer    = null;
+  var pollCount    = 0;
+  var MAX_POLLS    = 60; // stop after 2 minutes
+
+  // intercept form submit
+  document.getElementById('broadcast-form').addEventListener('submit', function() {
+    sessionStorage.setItem('trackBroadcast', '1');
+    document.getElementById('send-btn').disabled = true;
+    document.getElementById('send-btn').textContent = '⏳ Sending...';
+  });
+
+  // on page load — check if we should poll
+  var latestBroadcastId = parseInt(
+      document.getElementById('broadcast-history').dataset.latestId || '0'
+  );
+
+  if (sessionStorage.getItem('trackBroadcast') === '1' && latestBroadcastId) {
+      sessionStorage.removeItem('trackBroadcast');
+      startPolling(latestBroadcastId);
+  }
+
+  function startPolling(broadcastId) {
+    pollCount = 0;
+    document.getElementById('progress-tracker').classList.remove('hidden');
+    document.getElementById('progress-status').textContent = 'Queuing task...';
+    // small delay to let Celery pick up the task
+    setTimeout(function() { pollProgress(broadcastId); }, 1500);
+  }
+
+  function pollProgress(broadcastId) {
+      if (pollCount >= MAX_POLLS) {
+          document.getElementById('progress-status').textContent = 'Timed out — check notification log.';
+          return;
+      }
+      pollCount++;
+
+      fetch('/broadcast/' + broadcastId + '/progress/')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+              var sent       = data.sent       || 0;
+              var failed     = data.failed     || 0;
+              var total      = data.total      || 0;
+              var recipients = data.recipients || 0;
+
+              // update progress bar
+              var pct = recipients > 0 ? Math.min(Math.round(total / recipients * 100), 100) : 0;
+              document.getElementById('progress-bar').style.width = pct + '%';
+              document.getElementById('progress-text').textContent =
+                  sent + ' sent' + (failed > 0 ? ', ' + failed + ' failed' : '');
+
+              // update history count live
+              var recipientsEl = document.getElementById('recipients-' + broadcastId);
+              if (recipientsEl) recipientsEl.textContent = sent + ' sent';
+
+              if (data.done) {
+                  // ── completed ──
+                  document.getElementById('progress-bar').style.width = '100%';
+                  document.getElementById('progress-bar').className =
+                      'h-full rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-700';
+                  document.getElementById('progress-text').textContent = sent + '/' + recipients + ' sent';
+                  document.getElementById('progress-status').textContent =
+                      '✅ Done! ' + sent + ' email' + (sent !== 1 ? 's' : '') + ' sent successfully.' +
+                      (failed > 0 ? ' (' + failed + ' failed)' : '');
+                  document.getElementById('send-btn').disabled = false;
+                  document.getElementById('send-btn').textContent = '📨 Send Broadcast';
+                  clearTimeout(pollTimer);
+
+                  // auto hide after 3 seconds
+                  setTimeout(function() {
+                      var tracker = document.getElementById('progress-tracker');
+                      tracker.style.transition = 'opacity 0.5s';
+                      tracker.style.opacity = '0';
+                      setTimeout(function() {
+                          tracker.classList.add('hidden');
+                          tracker.style.opacity = '1';
+                      }, 500);
+                  }, 3000);
+
+              } else if (recipients === 0 && total === 0 && pollCount < 5) {
+                  // task not started yet
+                  document.getElementById('progress-status').textContent = 'Waiting for Celery worker...';
+                  pollTimer = setTimeout(function() { pollProgress(broadcastId); }, 2000);
+
+              } else {
+                  // still sending
+                  document.getElementById('progress-status').textContent =
+                      'Sending... ' + total + ' of ' + recipients + ' processed.';
+                  pollTimer = setTimeout(function() { pollProgress(broadcastId); }, 2000);
+              }
+          })
+          .catch(function() {
+              document.getElementById('progress-status').textContent = 'Unable to fetch progress.';
+              clearTimeout(pollTimer);
+          });
+  }
 </script>
 
 {% endblock %}

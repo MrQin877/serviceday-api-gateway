@@ -24,6 +24,7 @@ urlpatterns = [
     path('admin/organizer/create/',                 views.admin_create_organizer,       name='admin_create_organizer'),
     path('admin/organizer/<int:pk>/delete/',        views.admin_delete_organizer,       name='admin_delete_organizer'),
     path('broadcast/',                              views.broadcast_view,               name='broadcast'),
+    path('broadcast/<int:broadcast_id>/progress/',  views.broadcast_progress_view,      name='broadcast_progress'),
     path('notification/log/',                       views.notification_log_view,        name='notification_log'),
     path('notification/settings/',                  views.notification_settings_view,   name='notification_settings'),
     path('registration/',                           views.registration_view,            name='registration'),

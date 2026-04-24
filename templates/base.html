@@ -22,99 +22,92 @@
 
     <div class="absolute top-10 left-10 w-32 h-32 bg-[#B8E6B8] rounded-full opacity-30 float-animation"></div>
 
-    <nav class="bg-white shadow-md rounded-b-3xl px-8 py-4 flex justify-between items-center relative z-10">
+    <nav class="bg-white shadow-md rounded-b-3xl px-5 py-4 relative z-10">
+        <div class="flex justify-between items-center">
+            <a href="#" class="text-xl font-bold text-black hover:opacity-80 transition">
+                🌱 Service Day
+            </a>
 
-        <a href="#" class="text-2xl font-bold text-black hover:opacity-80 transition">
-            🌱 Corporate Service Day
-        </a>
+            <!-- Mobile menu button -->
+            <button id="menu-btn" onclick="toggleMenu()"
+                    class="sm:hidden text-gray-600 hover:text-black transition p-2">
+                <svg id="menu-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
 
-        <div class="flex items-center space-x-6 font-medium">
-
-            {% if user.is_authenticated %}
-
-                {% if user.role == "admin" %}
-                <!-- ========== ADMIN NAV ========== -->
-
-                    <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
-                        Home
+            <!-- Desktop nav -->
+            <div class="hidden sm:flex items-center space-x-5 font-medium">
+                {% if user.is_authenticated %}
+                    {% if user.role == "admin" %}
+                        <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition text-sm">Home</a>
+                        <a href="{% url 'admin_dashboard' %}" class="text-gray-700 hover:text-black transition text-sm">Dashboard</a>
+                        <a href="{% url 'broadcast' %}" class="text-gray-700 hover:text-black transition text-sm">Broadcast</a>
+                        <a href="{% url 'notification_log' %}" class="text-gray-700 hover:text-black transition text-sm">Logs</a>
+                    {% elif user.role == "employee" %}
+                        <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition text-sm">Home</a>
+                        <a href="{% url 'employee_dashboard' %}" class="text-gray-700 hover:text-black transition text-sm">Opportunities</a>
+                    {% endif %}
+                    <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+                        👤 {{ user.username }}
+                        <span class="text-gray-500 ml-1">({{ user.role|title }})</span>
+                    </span>
+                    <form method="POST" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition text-sm">
+                            Logout
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition text-sm">Home</a>
+                    <a href="{% url 'login' %}"
+                       class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black font-semibold px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition text-sm">
+                        Login
                     </a>
-
-                    <a href="{% url 'admin_dashboard' %}" class="text-gray-700 hover:text-black transition">
-                        Admin Dashboard
-                    </a>
-
-                    <a href="{% url 'broadcast' %}" class="text-gray-700 hover:text-black transition">
-                        Broadcast
-                    </a>
-
-                    <a href="{% url 'notification_log' %}" class="text-gray-700 hover:text-black transition">
-                        Notification Log
-                    </a>
-
-                    <div class="flex items-center space-x-3">
-                        <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
-                            👤 {{ user.username }}
-                            <span class="text-xs text-gray-500 ml-1">(Admin)</span>
-                        </span>
-                        <form method="POST" action="{% url 'logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
-                                Logout
-                            </button>
-                        </form>
-                    </div>
-
-                {% elif user.role == "employee" %}
-                <!-- ========== EMPLOYEE NAV ========== -->
-
-                    <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
-                        Home
-                    </a>
-
-                    <a href="{% url 'employee_dashboard' %}" class="text-gray-700 hover:text-black transition">
-                        Opportunities
-                    </a>
-
-                    <div class="flex items-center space-x-3">
-                        <span class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
-                            👤 {{ user.username }}
-                            <span class="text-xs text-gray-500 ml-1">(Employee)</span>
-                        </span>
-                        <form method="POST" action="{% url 'logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="text-red-400 hover:text-red-600 font-semibold transition">
-                                Logout
-                            </button>
-                        </form>
-                    </div>
-
                 {% endif %}
+            </div>
+        </div>
 
+        <!-- Mobile nav dropdown -->
+        <div id="mobile-menu" class="hidden sm:hidden mt-4 pb-2 border-t border-gray-100 pt-4 space-y-3">
+            {% if user.is_authenticated %}
+                {% if user.role == "admin" %}
+                    <a href="{% url 'home' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Home</a>
+                    <a href="{% url 'admin_dashboard' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Dashboard</a>
+                    <a href="{% url 'broadcast' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Broadcast</a>
+                    <a href="{% url 'notification_log' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Notification Log</a>
+                {% elif user.role == "employee" %}
+                    <a href="{% url 'home' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Home</a>
+                    <a href="{% url 'employee_dashboard' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Opportunities</a>
+                {% endif %}
+                <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span class="text-sm font-semibold text-gray-700">👤 {{ user.username }}</span>
+                    <form method="POST" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-red-400 hover:text-red-600 font-semibold text-sm">Logout</button>
+                    </form>
+                </div>
             {% else %}
-            <!-- ========== GUEST NAV ========== -->
-
-                <a href="{% url 'home' %}" class="text-gray-700 hover:text-black transition">
-                    Home
-                </a>
-
-                <a href="{% url 'login' %}"
-                   class="bg-gradient-to-r from-[#FFF4A3] to-[#B8E6B8] text-black font-semibold px-5 py-2 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-                    Login
-                </a>
-
+                <a href="{% url 'home' %}" class="block text-gray-700 hover:text-black text-sm font-medium py-1">Home</a>
+                <a href="{% url 'login' %}" class="block text-sm font-semibold text-black py-1">Login →</a>
             {% endif %}
-
         </div>
     </nav>
 
-    <main class="p-8 relative z-10">
+    <main class="px-4 sm:px-8 py-6 relative z-10">
         {% block content %}
         {% endblock %}
     </main>
 
-    <footer class="text-center py-6 text-gray-600">
+    <footer class="text-center py-6 text-gray-600 text-sm">
         © 2026 Service Day System
     </footer>
 
+    <script>
+        function toggleMenu() {
+            var menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

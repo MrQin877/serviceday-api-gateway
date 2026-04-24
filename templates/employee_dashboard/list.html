@@ -92,6 +92,42 @@
     50%       { border-color: #3b82f6; }
   }
   .reg-banner { animation: pulse-border 2.5s ease-in-out infinite; }
+
+  @media (max-width: 640px) {
+    /* single column cards */
+    .ngo-grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* smaller slot arc */
+    .slot-arc {
+      width: 48px;
+      height: 48px;
+    }
+
+    /* compact card padding */
+    .ngo-card .p-5 {
+      padding: 1rem;
+    }
+
+    /* smaller sort select */
+    #sortSelect {
+      font-size: 11px;
+      padding: 6px 28px 6px 10px;
+    }
+
+    /* filter toggle button */
+    #filterToggleBtn {
+      font-size: 11px;
+      padding: 6px 10px;
+    }
+
+    /* smaller badges */
+    .badge {
+      font-size: 0.65rem;
+      padding: 2px 7px;
+    }
+  }
 </style>
 
 <div class="max-w-6xl mx-auto px-5 py-10">
@@ -109,14 +145,14 @@
   {% endif %}
 
   <!-- Page header -->
-  <div class="flex items-start justify-between mb-8 gap-4">
+  <div class="flex flex-col sm:flex-row items-start justify-between mb-8 gap-4">
     <div>
       <h1 class="playfair text-4xl font-bold text-black">🌿 Service Day Opportunities</h1>
       <p class="text-gray-500 mt-1 text-sm">Pick an activity that suits you. Slots are limited — register early.</p>
     </div>
 
     {% if registration %}
-      <div class="flex-shrink-0 reg-banner flex items-center gap-3
+      <div class="w-full sm:w-auto sm:flex-shrink-0 reg-banner flex items-center gap-3
                   bg-blue-50 border-2 border-blue-200 px-4 py-3 rounded-2xl shadow-sm">
         <div class="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-base flex-shrink-0">✅</div>
         <div>
@@ -125,7 +161,7 @@
         </div>
       </div>
     {% else %}
-      <div class="flex-shrink-0 flex items-center gap-3
+      <div class="w-full sm:w-auto sm:flex-shrink-0 flex items-center gap-3
                   bg-gray-50 border border-gray-200 px-4 py-3 rounded-2xl">
         <div class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-base flex-shrink-0">📋</div>
         <div>
@@ -137,14 +173,14 @@
   </div>
 
   <!-- ── Top bar: always visible ── -->
-  <div class="bg-white rounded-2xl shadow-md border border-gray-100 px-5 py-3.5 mb-2
-              flex flex-wrap items-center gap-3">
+  <div class="bg-white rounded-2xl shadow-md border border-gray-100 px-4 py-3 mb-2
+              flex flex-wrap items-center gap-2">
 
-    <div class="relative flex-shrink-0">
-      <input id="searchInput" type="text" placeholder="Search by name…" oninput="applyFilters()"
-             class="bg-gray-50 text-gray-700 placeholder-gray-400 text-sm px-4 py-2 pr-9
-                    rounded-xl border border-gray-200 w-52 focus:border-green-400 focus:outline-none transition">
-      <span class="absolute right-3 top-2.5 text-gray-400 text-xs">🔍</span>
+    <div class="relative w-full sm:w-auto flex-shrink-0">
+        <input id="searchInput" type="text" placeholder="Search by name…" oninput="applyFilters()"
+              class="bg-gray-50 text-gray-700 placeholder-gray-400 text-sm px-4 py-2 pr-9
+                      rounded-xl border border-gray-200 w-full sm:w-52 focus:border-green-400 focus:outline-none transition">
+        <span class="absolute right-3 top-2.5 text-gray-400 text-xs">🔍</span>
     </div>
 
     <div class="flex-1"></div>
@@ -194,15 +230,15 @@
         <div class="flex flex-wrap gap-2" id="statusFilters">
           <label class="filter-pill">
             <input type="checkbox" value="open" onchange="applyFilters()">
-            <span class="pill-label"><span class="dot" style="background:#4ade80;"></span>Open</span>
+            <span class="pill-label text-xs sm:text-sm"><span class="dot" style="background:#4ade80;"></span>Open</span>
           </label>
           <label class="filter-pill">
             <input type="checkbox" value="almost" onchange="applyFilters()">
-            <span class="pill-label"><span class="dot" style="background:#fde047;"></span>Almost Full</span>
+            <span class="pill-label text-xs sm:text-sm"><span class="dot" style="background:#fde047;"></span>Almost Full</span>
           </label>
           <label class="filter-pill">
             <input type="checkbox" value="registered" onchange="applyFilters()">
-            <span class="pill-label"><span class="dot" style="background:#93c5fd;"></span>Registered</span>
+            <span class="pill-label text-xs sm:text-sm"><span class="dot" style="background:#93c5fd;"></span>Registered</span>
           </label>
         </div>
       </div>
@@ -215,7 +251,7 @@
           <label class="filter-pill">
             <input type="checkbox" value="{{ service_type.name }}" onchange="applyFilters()"
                    data-st-id="{{ service_type.id }}" data-color-index="{{ forloop.counter0 }}">
-            <span class="pill-label">{{ service_type.name }}</span>
+            <span class="pill-label text-xs sm:text-sm">{{ service_type.name }}</span>
           </label>
           {% endfor %}
         </div>
@@ -228,7 +264,7 @@
           {% for org in organizers %}
           <label class="filter-pill">
             <input type="checkbox" value="{{ org.company_name }}" onchange="applyFilters()">
-            <span class="pill-label">🏢 {{ org.company_name }}</span>
+            <span class="pill-label text-xs sm:text-sm">🏢 {{ org.company_name }}</span>
           </label>
           {% endfor %}
         </div>
@@ -238,7 +274,7 @@
   </div>
 
   <!-- Results count -->
-  <div class="flex items-center mb-4 px-1">
+  <div class="flex items-center mb-4 px-1 flex-wrap gap-2">
     <p id="resultsCount" class="text-sm text-gray-500">
       Showing <strong class="text-gray-800">{{ ngos|length }}</strong>
       activit{% if ngos|length == 1 %}y{% else %}ies{% endif %}

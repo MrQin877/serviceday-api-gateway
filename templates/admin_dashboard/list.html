@@ -487,6 +487,58 @@
     </table>
   </div>
 
+  {% if total_pages > 1 %}
+  <div class="flex items-center justify-between mt-6 px-2">
+
+      <!-- Info -->
+      <p class="text-xs text-gray-500">
+          Showing page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong>
+          ({{ total }} total NGOs)
+      </p>
+
+      <!-- Page buttons -->
+      <div class="flex items-center gap-1">
+
+          <!-- Previous -->
+          {% if has_prev %}
+          <a href="?page={{ page|add:'-1' }}&search={{ request.GET.search }}&status={{ request.GET.status }}"
+            class="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200
+                    rounded-xl hover:bg-gray-50 transition">
+              ← Prev
+          </a>
+          {% else %}
+          <span class="px-3 py-1.5 text-xs font-semibold text-gray-300 bg-white border border-gray-100 rounded-xl">
+              ← Prev
+          </span>
+          {% endif %}
+
+          <!-- Page numbers -->
+          {% for p in page_range %}
+          <a href="?page={{ p }}&search={{ request.GET.search }}&status={{ request.GET.status }}"
+            class="px-3 py-1.5 text-xs font-bold rounded-xl border transition
+                    {% if p == page %}bg-gray-900 text-yellow-300 border-gray-900
+                    {% else %}bg-white text-gray-600 border-gray-200 hover:bg-gray-50{% endif %}">
+              {{ p }}
+          </a>
+          {% endfor %}
+
+          <!-- Next -->
+          {% if has_next %}
+          <a href="?page={{ page|add:'1' }}&search={{ request.GET.search }}&status={{ request.GET.status }}"
+            class="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200
+                    rounded-xl hover:bg-gray-50 transition">
+              Next →
+          </a>
+          {% else %}
+          <span class="px-3 py-1.5 text-xs font-semibold text-gray-300 bg-white border border-gray-100 rounded-xl">
+              Next →
+          </span>
+          {% endif %}
+
+      </div>
+  </div>
+  {% endif %}
+
 </div>
 
 
