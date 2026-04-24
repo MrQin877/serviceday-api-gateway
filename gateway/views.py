@@ -3,6 +3,7 @@ import requests
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.conf import settings
+from django.utils.dateparse import parse_datetime
 
 SERVICES = settings.SERVICES
 
@@ -507,10 +508,13 @@ def admin_ngo_detail(request, ngo_id):
     # ← wire registration service
     reg_resp = requests.get(
         SERVICES['registration_service'] + f'/api/v1/registrations/participants/{ngo_id}/',
-        headers=auth_headers(request)
+    headers=auth_headers(request)
     )
-    reg_data = reg_resp.json() if reg_resp.status_code == 200 else {}
-    participants = reg_data.get('results', {}).get('participants', [])
+    print(f"STATUS: {reg_resp.status_code}")
+    print(f"DATA: {reg_resp.json()}")
+    reg_data     = reg_resp.json() if reg_resp.status_code == 200 else {}
+    participants = reg_data.get('participants', [])
+    print(f"PARTICIPANTS: {participants}")
 
     # enrich with user details
     registrations = []
@@ -525,22 +529,22 @@ def admin_ngo_detail(request, ngo_id):
             'username': f'user_{p["employee_id"]}',
             'email': '',
         }
-        registrations.append({
-            'employee': employee,
-            'registered_at': p['registered_at'],
-            'completed': p['completed'],
-        })
 
-    return render(request, 'admin_dashboard/detail.html', {
-        'ngo':          ngo,
-        'status_label': ngo.get('status_label', ''),
-        'fill_pct':     ngo['fill_pct'],
-        'registrations': registrations,    # ← now populated ✅
-        'ngo':           ngo,
-        'status_label':  status_label,
-        'fill_pct':      ngo['fill_pct'],
-        'registrations': [],
-    })
+        # ← parse ISO string into a real datetime so Django |date filter works
+        raw_dt = p.get('registered_at', '')
+        registered_at = parse_datetime(raw_dt) if raw_dt else None
+
+        registrations.append({
+            'employee':      employee,
+            'registered_at': registered_at,   # ← now a datetime object
+            'completed':     p['completed'],
+        })
+        return render(request, 'admin_dashboard/detail.html', {
+            'ngo':           ngo,
+            'status_label':  status_label, 
+            'fill_pct':      ngo['fill_pct'],
+            'registrations': registrations,
+        })
 
 
 def admin_create_ngo(request):
