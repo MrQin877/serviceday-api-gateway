@@ -24,6 +24,31 @@ def is_admin(request):
 def is_employee(request):
     return request.session.get('role') == 'employee'
 
+def fetch_all_ngos(headers):
+    """Fetch all NGOs dynamically based on total count."""
+    try:
+        # Step 1 — get total count
+        resp = requests.get(
+            SERVICES['ngo_service'] + '/api/v1/ngos/',
+            headers=headers,
+            params={'page_size': 1}
+        )
+        if resp.status_code != 200:
+            return []
+        total = resp.json().get('data', {}).get('count', 0)
+        if total == 0:
+            return []
+
+        # Step 2 — fetch all at once using total count
+        resp = requests.get(
+            SERVICES['ngo_service'] + '/api/v1/ngos/',
+            headers=headers,
+            params={'page_size': total}
+        )
+        return resp.json().get('data', {}).get('results', []) if resp.status_code == 200 else []
+    except Exception:
+        return []
+
 
 # ── Home ──────────────────────────────────────────────────────
 
@@ -648,41 +673,68 @@ def broadcast_view(request):
     if request.session.get('role') != 'admin':
         return redirect('home')
 
-    if request.method == 'POST':
-        subject  = request.POST.get('subject', '').strip()
-        body     = request.POST.get('body', '').strip()
-        target   = request.POST.get('target', 'all')
-        ngo_ids  = request.POST.getlist('ngo_ids')
+    # fetch ALL NGOs dynamically
+    all_ngos = fetch_all_ngos(auth_headers(request))
 
-        response = requests.post(
-            SERVICES['notification_service'] + '/api/v1/notifications/broadcasts/',
-            json={
-                'subject': subject,
-                'body':    body,
-                'target':  target,
-                'ngo_ids': ngo_ids,
-            },
+    # fetch registration counts — send as list
+    ngo_ids_list = [str(n['id']) for n in all_ngos]
+    try:
+        counts_resp = requests.get(
+            SERVICES['registration_service'] + '/api/v1/registrations/counts/',
+            params=[('ngo_ids', ngo_id) for ngo_id in ngo_ids_list],
             headers=auth_headers(request)
         )
-        if response.status_code == 201:
-            return redirect('broadcast')
-        # handle error
-        return render(request, 'notification/broadcast.html', {
-            'error': response.json().get('detail', 'Failed to send broadcast.'),
-        })
+        counts = counts_resp.json() if counts_resp.status_code == 200 else {}
+    except Exception:
+        counts = {}
 
-    # GET — fetch broadcast history
-    history  = requests.get(
+    # only keep NGOs with at least 1 registration
+    ngo_list = []
+    for ngo in all_ngos:
+        count = counts.get(str(ngo['id']), counts.get(ngo['id'], 0))
+        if count > 0:
+            ngo['slots_taken'] = count
+            ngo_list.append(ngo)
+
+    # fetch broadcast history
+    hist_resp = requests.get(
         SERVICES['notification_service'] + '/api/v1/notifications/broadcasts/',
         headers=auth_headers(request)
     )
-    ngo_list = requests.get(
-        SERVICES['ngo_service'] + '/api/v1/ngos/',
-        headers=auth_headers(request)
-    )
+    broadcast_history = hist_resp.json() if hist_resp.status_code == 200 else []
+
+    if request.method == 'POST':
+        subject = request.POST.get('subject', '').strip()
+        body    = request.POST.get('body', '').strip()
+        target  = request.POST.get('target', 'all')
+        ngo_ids = request.POST.getlist('ngo_ids')
+
+        payload = {
+            'subject': subject,
+            'body':    body,
+            'target':  target,
+        }
+        if target == 'activity' and ngo_ids:
+            payload['ngo_ids'] = ngo_ids
+
+        response = requests.post(
+            SERVICES['notification_service'] + '/api/v1/notifications/broadcasts/',
+            json=payload,
+            headers=auth_headers(request)
+        )
+        if response.status_code == 201:
+            messages.success(request, 'Broadcast queued successfully!')
+        else:
+            try:
+                error = response.json().get('detail', 'Failed to send broadcast.')
+            except Exception:
+                error = f'Failed. (Status {response.status_code})'
+            messages.error(request, error)
+        return redirect('broadcast')
+
     return render(request, 'notification/broadcast.html', {
-        'broadcast_history': history.json() if history.status_code == 200 else [],
-        'ngo_list':          ngo_list.json().get('results', []) if ngo_list.status_code == 200 else [],
+        'ngo_list':          ngo_list,
+        'broadcast_history': broadcast_history,
     })
 
 
@@ -693,16 +745,53 @@ def notification_log_view(request):
         return redirect('home')
 
     filter_type = request.GET.get('type', '')
-    params      = {'notification_type': filter_type} if filter_type else {}
+    params = {}
+    if filter_type:
+        params['notification_type'] = filter_type
 
-    logs  = requests.get(
+    log_resp = requests.get(
         SERVICES['notification_service'] + '/api/v1/notifications/logs/',
-        headers=auth_headers(request),
-        params=params
+        params=params,
+        headers=auth_headers(request)
     )
+    logs = log_resp.json() if log_resp.status_code == 200 else []
+
+    # split sent_at into date and time
+    for log in logs:
+        sent_at = log.get('sent_at', '')
+        if sent_at:
+            clean = sent_at[:19]
+            log['sent_date'] = clean[:10]    # "2026-04-24"
+            log['sent_time'] = clean[11:16]  # "16:04"
+        else:
+            log['sent_date'] = ''
+            log['sent_time'] = ''
+
+    from datetime import datetime, timedelta
+    seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+    total_sent  = len(logs)
+    failed      = sum(1 for l in logs if not l.get('is_success'))
+    recent_sent = sum(1 for l in logs if l.get('sent_date', '') >= seven_days_ago)  # ← fix l not log
+
+    notification_types = [
+        ('confirmation', 'Confirmation'),
+        ('cancellation', 'Cancellation'),
+        ('reminder',     'Reminder'),
+        ('broadcast',    'Broadcast'),
+        ('switch',       'Switch'),
+        ('verification', 'Verification'),
+    ]
+
     return render(request, 'notification/log.html', {
-        'logs':        logs.json() if logs.status_code == 200 else [],
-        'filter_type': filter_type,
+        'logs':               logs,
+        'filter_type':        filter_type,
+        'notification_types': notification_types,
+        'stats': {
+            'total_sent':  total_sent,
+            'recent_sent': recent_sent,
+            'failed':      failed,
+        }
     })
 
 
