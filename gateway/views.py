@@ -482,10 +482,13 @@ def admin_ngo_detail(request, ngo_id):
     # ← wire registration service
     reg_resp = requests.get(
         SERVICES['registration_service'] + f'/api/v1/registrations/participants/{ngo_id}/',
-        headers=auth_headers(request)
+    headers=auth_headers(request)
     )
-    reg_data = reg_resp.json() if reg_resp.status_code == 200 else {}
-    participants = reg_data.get('results', {}).get('participants', [])
+    print(f"STATUS: {reg_resp.status_code}")
+    print(f"DATA: {reg_resp.json()}")
+    reg_data     = reg_resp.json() if reg_resp.status_code == 200 else {}
+    participants = reg_data.get('participants', [])
+    print(f"PARTICIPANTS: {participants}")
 
     # enrich with user details
     registrations = []
@@ -511,10 +514,6 @@ def admin_ngo_detail(request, ngo_id):
         'status_label': ngo.get('status_label', ''),
         'fill_pct':     ngo['fill_pct'],
         'registrations': registrations,    # ← now populated ✅
-        'ngo':           ngo,
-        'status_label':  status_label,
-        'fill_pct':      ngo['fill_pct'],
-        'registrations': [],
     })
 
 

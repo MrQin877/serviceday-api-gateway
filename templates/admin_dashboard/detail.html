@@ -232,7 +232,7 @@
                 {{ reg.employee.first_name|first|upper }}{{ reg.employee.last_name|first|upper }}
               </div>
               <p class="font-semibold text-gray-800">
-                {% if reg.employee.get_full_name %}{{ reg.employee.get_full_name }}{% else %}{{ reg.employee.username }}{% endif %}
+                {% if reg.employee.first_name %}{{ reg.employee.first_name }} {{ reg.employee.last_name }}{% else %}{{ reg.employee.username }}{% endif %}
               </p>
             </div>
           </td>
