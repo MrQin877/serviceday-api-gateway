@@ -3,6 +3,7 @@ import requests
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.conf import settings
+from django.utils.dateparse import parse_datetime
 
 SERVICES = settings.SERVICES
 
@@ -503,18 +504,22 @@ def admin_ngo_detail(request, ngo_id):
             'username': f'user_{p["employee_id"]}',
             'email': '',
         }
-        registrations.append({
-            'employee': employee,
-            'registered_at': p['registered_at'],
-            'completed': p['completed'],
-        })
 
-    return render(request, 'admin_dashboard/detail.html', {
-        'ngo':          ngo,
-        'status_label': ngo.get('status_label', ''),
-        'fill_pct':     ngo['fill_pct'],
-        'registrations': registrations,    # ← now populated ✅
-    })
+        # ← parse ISO string into a real datetime so Django |date filter works
+        raw_dt = p.get('registered_at', '')
+        registered_at = parse_datetime(raw_dt) if raw_dt else None
+
+        registrations.append({
+            'employee':      employee,
+            'registered_at': registered_at,   # ← now a datetime object
+            'completed':     p['completed'],
+        })
+        return render(request, 'admin_dashboard/detail.html', {
+            'ngo':           ngo,
+            'status_label':  status_label, 
+            'fill_pct':      ngo['fill_pct'],
+            'registrations': registrations,
+        })
 
 
 def admin_create_ngo(request):
