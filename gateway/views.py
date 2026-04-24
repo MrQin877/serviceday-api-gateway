@@ -539,12 +539,12 @@ def admin_ngo_detail(request, ngo_id):
             'registered_at': registered_at,   # ← now a datetime object
             'completed':     p['completed'],
         })
-        return render(request, 'admin_dashboard/detail.html', {
-            'ngo':           ngo,
-            'status_label':  status_label, 
-            'fill_pct':      ngo['fill_pct'],
-            'registrations': registrations,
-        })
+    return render(request, 'admin_dashboard/detail.html', {
+        'ngo':           ngo,
+        'status_label':  status_label, 
+        'fill_pct':      ngo['fill_pct'],
+        'registrations': registrations,
+    })
 
 
 def admin_create_ngo(request):

@@ -3,6 +3,23 @@
 {% block content %}
 
 <style>
+  .location-cell {
+  position: relative;
+  overflow: hidden;
+  max-width: 120px;
+  }
+  .location-text {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .location-text.scrolling {
+    animation: scroll-text linear infinite;
+  }
+  @keyframes scroll-text {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
   /* service type pill */
   .st-chip {
     display: inline-flex; align-items: center; gap: 6px;
@@ -329,8 +346,8 @@
     <table class="w-full text-sm table-fixed">
       <thead>
         <tr class="bg-gradient-to-r from-[#f0fdf4] to-[#fefce8]">
-          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[18%]">NGO Name</th>
-          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[12%]">Service Type</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[15%]">NGO Name</th>
+          <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[15%]">Service Type</th>
           <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[13%]">Organizer</th>
           <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[13%]">Location</th>
           <th class="text-left px-6 py-3 text-xs font-bold text-gray-400 uppercase tracking-widest w-[10%]">Slots</th>
@@ -344,16 +361,18 @@
         <tr class="hover:bg-green-50 transition-colors">
 
           <td class="px-6 py-4">
-            <p class="font-semibold text-gray-800 truncate" title="{{ ngo.name }}">{{ ngo.name }}</p>
+            <div class="location-cell overflow-hidden max-w-[140px]">
+              <p class="location-text font-semibold text-gray-800 whitespace-nowrap">{{ ngo.name }}</p>
+            </div>
             <p class="text-xs text-gray-400 mt-0.5">{{ ngo.service_date }}</p>
           </td>
 
           <td class="px-6 py-4">
-            <span class="st-type-badge text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap overflow-hidden text-ellipsis block max-w-[120px]" 
-                  data-st-id="{{ ngo.serviceType.id }}"
-                  title="{{ ngo.serviceType.name }}">
-              {{ ngo.serviceType.name }}
-            </span>
+            <div class="st-type-badge location-cell rounded-full w-[100px]"
+                data-st-id="{{ ngo.serviceType.id }}"
+                style="padding-top: 6px; padding-bottom: 6px; display:flex; align-items:center; justify-content:center;">
+              <span class="location-text text-xs font-bold whitespace-nowrap">{{ ngo.serviceType.name }}</span>
+            </div>
           </td>
 
           <!-- Organizer column -->
@@ -368,7 +387,9 @@
           </td>
 
           <td class="px-6 py-4">
-            <p class="text-gray-500 text-xs truncate" title="{{ ngo.location }}">{{ ngo.location }}</p>
+            <div class="location-cell overflow-hidden max-w-[120px]">
+              <p class="location-text text-gray-500 text-xs whitespace-nowrap">{{ ngo.location }}</p>
+            </div>
           </td>
 
           <td class="px-6 py-4">
@@ -817,7 +838,7 @@
     btn.addEventListener('click', function() {
       var d = btn.dataset;
       title.textContent = 'Edit NGO';
-      form.action = '/ngo/admin_dashboard/' + d.id + '/update/';
+      form.action = '/admin/ngo/' + d.id + '/update/';
       document.getElementById('f-name').value         = d.name;
       document.getElementById('f-description').value  = d.description;
       document.getElementById('f-serviceType').value  = d.serviceType;
@@ -922,7 +943,7 @@
     var editingId = reopenEl.dataset.editingId;
     if (editingId) {
       title.textContent = 'Edit NGO';
-      form.action = '/ngo/admin_dashboard/' + editingId + '/update/';
+      form.action = '/admin/ngo/' + editingId + '/update/';
     } else {
       title.textContent = 'Add New NGO';
       form.action = form.dataset.addUrl;
@@ -1043,6 +1064,25 @@
         } else { alert('Could not create service type. Please try again.'); }
       }).catch(function() { alert('Network error — please try again.'); });
   }
+
+  // ── Location scroll — only if overflowing, consistent speed ───────────────
+  document.querySelectorAll('.location-cell').forEach(function(cell) {
+    var text = cell.querySelector('.location-text');
+    if (!text) return;
+
+    // check if text overflows the cell
+    if (text.scrollWidth > cell.offsetWidth) {
+      // duplicate text for seamless loop
+      var original = text.textContent;
+      text.textContent = original + '\u00A0\u00A0\u00A0\u00A0' + original;
+
+      // consistent speed: 40px per second
+      var pixelsPerSecond = 40;
+      var duration = (text.scrollWidth / 2) / pixelsPerSecond;
+      text.style.animationDuration = duration + 's';
+      text.classList.add('scrolling');
+    }
+  });
 </script>
 
 {% endblock %}
