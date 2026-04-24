@@ -669,11 +669,12 @@ def broadcast_view(request):
             headers=auth_headers(request)
         )
         if response.status_code == 201:
+            messages.success(request, 'Broadcast sent successfully!')
             return redirect('broadcast')
-        # handle error
-        return render(request, 'notification/broadcast.html', {
-            'error': response.json().get('detail', 'Failed to send broadcast.'),
-        })
+
+        error = response.json().get('detail', 'Failed to send broadcast.')
+        messages.error(request, f'{error}')
+        return redirect('broadcast')
 
     # GET — fetch broadcast history
     history  = requests.get(
