@@ -5,6 +5,7 @@ Django==6.0.4
 gunicorn==25.3.0
 idna==3.11
 packaging==26.1
+PyJWT==2.12.1
 python-dotenv==1.2.2
 requests==2.33.1
 sqlparse==0.5.5
