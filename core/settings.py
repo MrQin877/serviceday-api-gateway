@@ -123,14 +123,19 @@ STATIC_URL = 'static/'
 #SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key')
 #DEBUG       = os.environ.get('DEBUG', 'True') == 'True'
 
+
+def _ensure_scheme(url, scheme='https'):
+    if url and not url.startswith(('http://', 'https://')):
+        return f'{scheme}://{url}'
+    return url
 # ── Service URLs ──────────────────────────────
 SERVICES = {
-    'user_service':         os.environ.get('USER_SERVICE_URL',         'http://127.0.0.1:8001'),
-    'ngo_service':          os.environ.get('NGO_SERVICE_URL',          'http://127.0.0.1:8002'),
-    'registration_service': os.environ.get('REGISTRATION_SERVICE_URL', 'http://127.0.0.1:8003'),
-    'notification_service': os.environ.get('NOTIFICATION_SERVICE_URL', 'http://127.0.0.1:8004'),
-    'checkin_service':      os.environ.get('CHECKIN_SERVICE_URL',      'http://127.0.0.1:8005'),
-    'notification_ws_host': os.environ.get('NOTIFICATION_WS_HOST',     'http://127.0.0.1:8004'),
+    'user_service':         _ensure_scheme(os.environ.get('USER_SERVICE_URL',         '127.0.0.1:8001'), 'http'),
+    'ngo_service':          _ensure_scheme(os.environ.get('NGO_SERVICE_URL',          '127.0.0.1:8002'), 'http'),
+    'registration_service': _ensure_scheme(os.environ.get('REGISTRATION_SERVICE_URL', '127.0.0.1:8003'), 'http'),
+    'notification_service': _ensure_scheme(os.environ.get('NOTIFICATION_SERVICE_URL', '127.0.0.1:8004'), 'http'),
+    'checkin_service':      _ensure_scheme(os.environ.get('CHECKIN_SERVICE_URL',      '127.0.0.1:8005'), 'http'),
+    'notification_ws_host': os.environ.get('NOTIFICATION_WS_HOST', '127.0.0.1:8004'),  # no scheme, JS handles it
 }
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
