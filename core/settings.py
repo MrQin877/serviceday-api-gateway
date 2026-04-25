@@ -62,6 +62,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'gateway.context_processors.user_session',
+                'gateway.context_processors.services',
             ],
         },
     },
@@ -128,4 +130,8 @@ SERVICES = {
     'registration_service': os.environ.get('REGISTRATION_SERVICE_URL', 'http://127.0.0.1:8003'),
     'notification_service': os.environ.get('NOTIFICATION_SERVICE_URL', 'http://127.0.0.1:8004'),
     'checkin_service':      os.environ.get('CHECKIN_SERVICE_URL',      'http://127.0.0.1:8005'),
+        'notification_ws_host': os.environ.get(
+        'NOTIFICATION_WS_HOST',
+        '127.0.0.1:8004'
+    ),
 }

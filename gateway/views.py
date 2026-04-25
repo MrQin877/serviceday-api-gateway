@@ -147,9 +147,18 @@ def login_view(request):
                 SERVICES['user_service'] + '/api/v1/users/me/',
                 headers={'Authorization': f'Bearer {data["access"]}'}
             )
+            
+            print("=== DEBUG LOGIN ===")                    # 👈 add
+            print(f"me status: {me.status_code}")           # 👈 add
+            print(f"me response: {me.json()}")              # 👈 add
+            
             if me.status_code == 200:
                 request.session['role']    = me.json().get('role', 'employee')
                 request.session['user_id'] = me.json().get('id')
+                
+                print(f"user_id saved: {request.session['user_id']}")   # 👈 add
+                print(f"role saved: {request.session['role']}")         # 👈 add
+                print("===================")         
 
             if request.session.get('role') == 'admin':
                 return redirect('admin_dashboard')

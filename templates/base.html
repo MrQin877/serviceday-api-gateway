@@ -12,8 +12,15 @@
             0%, 100% { transform: translateY(0px) translateX(0px); }
             50% { transform: translateY(-20px) translateX(10px); }
         }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to   { transform: translateX(0);   opacity: 1; }
+        }
         .float-animation {
             animation: float 6s infinite ease-in-out;
+        }
+        .slide-in-animation {
+            animation: slideIn 0.5s ease-out;
         }
     </style>
 </head>
@@ -108,6 +115,57 @@
             var menu = document.getElementById('mobile-menu');
             menu.classList.toggle('hidden');
         }
+        (function () {
+            const userId = "{{ user_id }}";
+            if (!userId) return;
+
+            const host = "{{ services.notification_ws_host }}";
+
+            const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+
+            const wsUrl = `${protocol}://${host}/ws/notifications/?user_id=${userId}`;
+
+            const socket = new WebSocket(wsUrl);
+
+            socket.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                showToast(data.message, data.type);
+            };
+
+            socket.onerror = function (err) {
+                console.error("[WS ERROR]", err);
+            };
+
+            function showToast(message, type) {
+                const toast = document.createElement("div");
+
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    padding: 14px 20px;
+                    border-radius: 8px;
+                    color: white;
+                    font-size: 14px;
+                    animation: slideIn 0.3s ease;
+                `;
+
+                const colors = {
+                    success: "#22c55e",
+                    warning: "#f59e0b",
+                    info: "#6366f1",
+                    broadcast: "#3b82f6",
+                };
+
+                toast.style.background = colors[type] || colors.info;
+                toast.textContent = message;
+
+                document.body.appendChild(toast);
+
+                setTimeout(() => toast.remove(), 5000);
+            }
+        })();
     </script>
 </body>
 </html>
