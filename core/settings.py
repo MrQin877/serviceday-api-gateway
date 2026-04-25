@@ -129,5 +129,3 @@ SERVICES = {
     'notification_service': os.environ.get('NOTIFICATION_SERVICE_URL', 'http://127.0.0.1:8004'),
     'checkin_service':      os.environ.get('CHECKIN_SERVICE_URL',      'http://127.0.0.1:8005'),
 }
-
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split()
