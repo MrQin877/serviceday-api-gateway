@@ -597,33 +597,7 @@ def admin_ngo_detail(request, ngo_id):
         'registrations': registrations,
     })
 
-
-def admin_create_ngo(request):
-    headers = check_auth(request)
-    if not isinstance(headers, dict):
-        return headers
-    if not is_admin(request):
-        return redirect('home')
-    if request.method != 'POST':
-        return redirect('admin_dashboard')
-
-    response = requests.post(
-        SERVICES['ngo_service'] + '/api/v1/ngos/',
-        json=request.POST.dict(),
-        headers=headers
-    )
-
-    if response.status_code == 201:
-        messages.success(request, 'NGO created successfully.')
-        return redirect('admin_dashboard')
-
-    # Validation failed — extract errors from serializer response
-    try:
-        errors = response.json().get('errors', {})
-    except Exception:
-        errors = {'__all__': ['Failed to create NGO. Please try again.']}
-
-    # Re-fetch everything the dashboard needs to re-render
+def _dashboard_context(headers, request, form_error=None, form_data=None, editing_ngo_id=None):
     page      = request.GET.get('page', 1)
     params    = {'page': page, 'page_size': 5}
 
@@ -664,29 +638,64 @@ def admin_create_ngo(request):
         ngo['start_time_short'] = ngo.get('start_time', '')[:5]
         ngo['end_time_short']   = ngo.get('end_time', '')[:5]
 
-    return render(request, 'admin_dashboard/list.html', {
-        'stats':          stats,
-        'ngos':           ngos,
-        'service_types':  service_types,
-        'organizers':     organizers,
-        'total':          total,
-        'page':           page,
-        'total_pages':    total_pages,
-        'page_range':     range(max(1, page - 2), min(total_pages + 1, page + 3)),
-        'has_next':       ngo_data.get('next') is not None,
-        'has_prev':       ngo_data.get('previous') is not None,
-        'form_errors':    errors,        # ← errors to show in form
-        'form_post':      request.POST,  # ← repopulate form fields
-        'open_add_modal': True,          # ← auto-open the modal
-    })
+    return {
+        'stats':           stats,
+        'ngos':            ngos,
+        'service_types':   service_types,
+        'organizers':      organizers,
+        'total':           total,
+        'page':            page,
+        'total_pages':     total_pages,
+        'page_range':      range(max(1, page - 2), min(total_pages + 1, page + 3)),
+        'has_next':        ngo_data.get('next') is not None,
+        'has_prev':        ngo_data.get('previous') is not None,
+        'form_error':      form_error,       # ← red banner in modal
+        'form_data':       form_data,        # ← repopulate fields
+        'editing_ngo_id':  editing_ngo_id,   # ← reopen edit modal if update
+    }
+
+def admin_create_ngo(request):
+    headers = check_auth(request)
+    if not isinstance(headers, dict):
+        return headers
+    if not is_admin(request):
+        return redirect('home')
+    if request.method != 'POST':
+        return redirect('admin_dashboard')
+
+    response = requests.post(
+        SERVICES['ngo_service'] + '/api/v1/ngos/',
+        json=request.POST.dict(),
+        headers=headers
+    )
+    if response.status_code == 201:
+        messages.success(request, 'NGO created successfully.')
+        return redirect('admin_dashboard')
+
+    # validation failed — extract error
+    try:
+        resp_errors = response.json().get('errors', {})
+        cutoff_errs = resp_errors.get('cutoff_date', [])
+        form_error  = cutoff_errs[0] if cutoff_errs else (
+            next((v[0] if isinstance(v, list) else str(v) for v in resp_errors.values()), 'Failed to create NGO.')
+        )
+    except Exception:
+        resp_errors = {}
+        form_error  = 'Failed to create NGO. Please try again.'
+
+    return render(request, 'admin_dashboard/list.html',
+                  _dashboard_context(headers, request, form_error=form_error, form_data=request.POST))
 
 
 def admin_update_ngo(request, ngo_id):
     headers = check_auth(request)
     if not isinstance(headers, dict):
         return headers
+    if not is_admin(request):
+        return redirect('home')
     if request.method != 'POST':
         return redirect('admin_dashboard')
+
     response = requests.patch(
         SERVICES['ngo_service'] + f'/api/v1/ngos/{ngo_id}/',
         json=request.POST.dict(),
@@ -694,9 +703,22 @@ def admin_update_ngo(request, ngo_id):
     )
     if response.status_code == 200:
         messages.success(request, 'NGO updated successfully.')
-    else:
-        messages.error(request, 'Failed to update NGO.')
-    return redirect('admin_dashboard')
+        return redirect('admin_dashboard')
+
+    # validation failed — extract error
+    try:
+        resp_errors = response.json().get('errors', {})
+        cutoff_errs = resp_errors.get('cutoff_date', [])
+        form_error  = cutoff_errs[0] if cutoff_errs else (
+            next((v[0] if isinstance(v, list) else str(v) for v in resp_errors.values()), 'Failed to update NGO.')
+        )
+    except Exception:
+        resp_errors = {}
+        form_error  = 'Failed to update NGO. Please try again.'
+
+    return render(request, 'admin_dashboard/list.html',
+                  _dashboard_context(headers, request, form_error=form_error,
+                                     form_data=request.POST, editing_ngo_id=ngo_id))
 
 
 def admin_delete_ngo(request, ngo_id):
