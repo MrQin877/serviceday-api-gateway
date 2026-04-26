@@ -221,7 +221,15 @@ def register_view(request):
         if response.status_code == 201:
             email = payload['email']
             return redirect(f"{reverse('register_sent')}?email={email}")
-        errors = response.json()
+        try:
+            raw = response.json()
+            # ensure errors is always a dict
+            if isinstance(raw, dict):
+                errors = raw
+            else:
+                errors = {'error': [str(raw)]}
+        except Exception:
+            errors = {'error': ['Registration failed. Please try again.']}
         return render(request, 'accounts/register.html', {'errors': errors})
 
     return render(request, 'accounts/register.html')
