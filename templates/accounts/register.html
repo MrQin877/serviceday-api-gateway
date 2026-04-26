@@ -71,6 +71,26 @@
             {% endfor %}
         {% endif %}
 
+        <!-- API Validation Errors -->
+        {% if errors %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm space-y-1">
+            {% for field, errs in errors.items %}
+                {% for err in errs %}
+                <div class="flex items-start gap-2">
+                    <span class="mt-0.5 flex-shrink-0">⚠️</span>
+                    <span>
+                        {% if field == 'non_field_errors' or field == 'detail' %}
+                            {{ err }}
+                        {% else %}
+                            <strong>{{ field|capfirst|replace:"_":" " }}:</strong> {{ err }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- Register Form -->
         <form method="POST">
             {% csrf_token %}
