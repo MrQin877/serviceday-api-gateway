@@ -602,18 +602,83 @@ def admin_create_ngo(request):
     headers = check_auth(request)
     if not isinstance(headers, dict):
         return headers
+    if not is_admin(request):
+        return redirect('home')
     if request.method != 'POST':
         return redirect('admin_dashboard')
+
     response = requests.post(
         SERVICES['ngo_service'] + '/api/v1/ngos/',
         json=request.POST.dict(),
         headers=headers
     )
+
     if response.status_code == 201:
         messages.success(request, 'NGO created successfully.')
-    else:
-        messages.error(request, 'Failed to create NGO.')
-    return redirect('admin_dashboard')
+        return redirect('admin_dashboard')
+
+    # Validation failed — extract errors from serializer response
+    try:
+        errors = response.json().get('errors', {})
+    except Exception:
+        errors = {'__all__': ['Failed to create NGO. Please try again.']}
+
+    # Re-fetch everything the dashboard needs to re-render
+    page      = request.GET.get('page', 1)
+    params    = {'page': page, 'page_size': 5}
+
+    ngos_resp   = requests.get(SERVICES['ngo_service'] + '/api/v1/ngos/', headers=headers, params=params)
+    ngos_raw    = ngos_resp.json() if ngos_resp.status_code == 200 else {}
+    ngo_data    = ngos_raw.get('data', {})
+    ngos        = ngo_data.get('results', [])
+    total       = ngo_data.get('count', 0)
+    page        = int(page)
+    total_pages = (total + 4) // 5
+
+    st_resp       = requests.get(SERVICES['ngo_service'] + '/api/v1/service-types/', headers=headers)
+    st_raw        = st_resp.json() if st_resp.status_code == 200 else []
+    service_types = st_raw.get('data') or st_raw.get('results') or [] if isinstance(st_raw, dict) else st_raw
+
+    org_resp   = requests.get(SERVICES['ngo_service'] + '/api/v1/organizers/', headers=headers)
+    org_raw    = org_resp.json() if org_resp.status_code == 200 else []
+    organizers = org_raw.get('data') or org_raw.get('results') or [] if isinstance(org_raw, dict) else org_raw
+
+    stats_resp = requests.get(SERVICES['ngo_service'] + '/api/v1/ngos/dashboard/', headers=headers)
+    stats_raw  = stats_resp.json() if stats_resp.status_code == 200 else {}
+    stats      = stats_raw.get('data', stats_raw) if isinstance(stats_raw, dict) else {}
+
+    for ngo in ngos:
+        taken     = ngo.get('slots_taken', 0)
+        max_slots = ngo.get('max_slots', 1)
+        ngo['fill_pct']     = round(taken / max_slots * 100) if max_slots else 0
+        ngo['status_label'] = {
+            'open': 'Open', 'almost_full': 'Almost Full',
+            'full': 'Full', 'closed': 'Closed', 'inactive': 'Inactive',
+        }.get(ngo.get('status', ''), 'Unknown')
+        cutoff = ngo.get('cutoff_datetime', '')
+        if cutoff:
+            ngo['cutoff_date'] = cutoff[:10]
+            ngo['cutoff_time'] = cutoff[11:16]
+        else:
+            ngo['cutoff_date'] = ngo['cutoff_time'] = ''
+        ngo['start_time_short'] = ngo.get('start_time', '')[:5]
+        ngo['end_time_short']   = ngo.get('end_time', '')[:5]
+
+    return render(request, 'admin_dashboard/list.html', {
+        'stats':          stats,
+        'ngos':           ngos,
+        'service_types':  service_types,
+        'organizers':     organizers,
+        'total':          total,
+        'page':           page,
+        'total_pages':    total_pages,
+        'page_range':     range(max(1, page - 2), min(total_pages + 1, page + 3)),
+        'has_next':       ngo_data.get('next') is not None,
+        'has_prev':       ngo_data.get('previous') is not None,
+        'form_errors':    errors,        # ← errors to show in form
+        'form_post':      request.POST,  # ← repopulate form fields
+        'open_add_modal': True,          # ← auto-open the modal
+    })
 
 
 def admin_update_ngo(request, ngo_id):
